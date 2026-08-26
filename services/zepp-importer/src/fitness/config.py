@@ -18,6 +18,10 @@ def _default_raw_dir() -> Path:
     return _repo_root() / "data" / "raw"
 
 
+def _default_duckdb_path() -> Path:
+    return _repo_root() / "data" / "zepp.duckdb"
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file_encoding="utf-8",
@@ -29,6 +33,7 @@ class Settings(BaseSettings):
     zepp_host: str = "api-mifit-us3.zepp.com"
     zepp_region: str = "eu"
     data_raw_dir: Path = Field(default_factory=_default_raw_dir)
+    duckdb_path: Path = Field(default_factory=_default_duckdb_path)
 
 
 def load_settings() -> Settings:

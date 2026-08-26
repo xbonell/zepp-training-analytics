@@ -32,3 +32,18 @@ def test_require_credentials_raises(monkeypatch, tmp_path):
     s = load_settings()
     with pytest.raises(ConfigError):
         require_credentials(s)
+
+
+def test_duckdb_path_default(tmp_path, monkeypatch):
+    monkeypatch.delenv("DUCKDB_PATH", raising=False)
+    monkeypatch.delenv("DATA_RAW_DIR", raising=False)
+    settings = load_settings()
+    assert settings.duckdb_path.name == "zepp.duckdb"
+    assert settings.duckdb_path.parent.name == "data"
+
+
+def test_duckdb_path_from_env(tmp_path, monkeypatch):
+    target = tmp_path / "custom.duckdb"
+    monkeypatch.setenv("DUCKDB_PATH", str(target))
+    settings = load_settings()
+    assert settings.duckdb_path == target
