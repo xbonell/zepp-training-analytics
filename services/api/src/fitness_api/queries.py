@@ -1,0 +1,125 @@
+from datetime import date
+from pathlib import Path
+from typing import Any
+
+import duckdb
+
+ACTIVITY_COLUMNS = """
+activity_id, sport_type, source, started_at, ended_at, duration_s,
+distance_m, calories, avg_hr, max_hr, min_hr, te, exercise_load
+"""
+
+
+def _connect(path: Path) -> duckdb.DuckDBPyConnection:
+    connection = duckdb.connect(str(path), read_only=True)
+    connection.execute("SET TimeZone = 'Europe/Madrid'")
+    return connection
+
+
+def _rows(cursor: duckdb.DuckDBPyConnection) -> list[dict[str, Any]]:
+    columns = [item[0] for item in cursor.description]
+    return [dict(zip(columns, row, strict=True)) for row in cursor.fetchall()]
+
+
+def suggested_hrmax(path: Path) -> float | None:
+    with _connect(path) as conn:
+        row = conn.execute(
+            """
+            SELECT quantile_cont(hr_bpm, 0.99)
+            FROM activity_samples
+            WHERE hr_bpm > 0
+            """
+        ).fetchone()
+    return float(row[0]) if row and row[0] is not None else None
+
+
+def list_activities(
+    path: Path,
+    from_date: date | None = None,
+    to_date: date | None = None,
+    sport_type: int | None = None,
+    limit: int | None = None,
+) -> list[dict[str, Any]]:
+    conditions: list[str] = []
+    parameters: list[Any] = []
+    if from_date is not None:
+        conditions.append("started_at >= CAST(? AS DATE)")
+        parameters.append(from_date)
+    if to_date is not None:
+        conditions.append("started_at < CAST(? AS DATE) + INTERVAL 1 DAY")
+        parameters.append(to_date)
+    if sport_type is not None:
+        conditions.append("sport_type = ?")
+        parameters.append(sport_type)
+
+    where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+    limit_clause = "LIMIT ?" if limit is not None else ""
+    if limit is not None:
+        parameters.append(limit)
+    with _connect(path) as conn:
+        cursor = conn.execute(
+            f"""
+            SELECT {ACTIVITY_COLUMNS}
+            FROM activities
+            {where}
+            ORDER BY started_at DESC
+            {limit_clause}
+            """,
+            parameters,
+        )
+        return _rows(cursor)
+
+
+def get_activity(path: Path, activity_id: str) -> dict[str, Any] | None:
+    with _connect(path) as conn:
+        cursor = conn.execute(
+            f"""
+            SELECT {ACTIVITY_COLUMNS}
+            FROM activities
+            WHERE activity_id = ?
+            """,
+            [activity_id],
+        )
+        rows = _rows(cursor)
+    return rows[0] if rows else None
+
+
+def get_activity_samples(path: Path, activity_id: str) -> list[tuple[int, int]]:
+    with _connect(path) as conn:
+        rows = conn.execute(
+            """
+            SELECT elapsed_s, hr_bpm
+            FROM activity_samples
+            WHERE activity_id = ? AND hr_bpm > 0
+            ORDER BY elapsed_s
+            """,
+            [activity_id],
+        ).fetchall()
+    return [(int(elapsed_s), int(hr_bpm)) for elapsed_s, hr_bpm in rows]
+
+
+def all_activity_samples(path: Path) -> dict[str, list[tuple[int, int]]]:
+    with _connect(path) as conn:
+        rows = conn.execute(
+            """
+            SELECT activity_id, elapsed_s, hr_bpm
+            FROM activity_samples
+            WHERE hr_bpm > 0
+            ORDER BY activity_id, elapsed_s
+            """
+        ).fetchall()
+    result: dict[str, list[tuple[int, int]]] = {}
+    for activity_id, elapsed_s, hr_bpm in rows:
+        result.setdefault(str(activity_id), []).append((int(elapsed_s), int(hr_bpm)))
+    return result
+
+
+def overview_totals(path: Path) -> tuple[int, int]:
+    with _connect(path) as conn:
+        count, duration = conn.execute(
+            """
+            SELECT count(*), coalesce(sum(duration_s), 0)
+            FROM activities
+            """
+        ).fetchone()
+    return int(count), int(duration)
