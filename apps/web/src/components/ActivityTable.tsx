@@ -66,7 +66,14 @@ export function ActivityTable({
         <tbody>
           {activities.map((activity) => (
             <tr key={activity.activity_id}>
-              <td data-label="Date">{formatDate(activity.started_at)}</td>
+              <td data-label="Date">
+                <a
+                  className="activity-link"
+                  href={`#activities/${encodeURIComponent(activity.activity_id)}`}
+                >
+                  {formatDate(activity.started_at)}
+                </a>
+              </td>
               <td data-label="Sport">Sport {activity.sport_type}</td>
               <td data-label="Duration">
                 {formatDuration(activity.duration_s)}

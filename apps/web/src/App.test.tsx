@@ -15,6 +15,18 @@ vi.mock('./api/client', async (importOriginal) => {
       recent: [],
     }),
     fetchActivities: vi.fn().mockResolvedValue([]),
+    fetchActivityDetail: vi.fn().mockResolvedValue({
+      activity_id: 'run-1',
+      sport_type: 1,
+      started_at: '2026-08-22T17:00:00Z',
+      duration_s: 120,
+      distance_m: 800,
+      avg_hr: 130,
+      max_hr: 150,
+      time_in_zone: { below: 0, z1: 0, z2: 60, z3: 0, z4: 60, z5: 0 },
+      splat_minutes_estimate: 1,
+      hr_series: [],
+    }),
   }
 })
 
@@ -50,6 +62,23 @@ describe('application shell', () => {
 
     expect(
       await screen.findByRole('heading', { name: 'Activities' }),
+    ).toBeVisible()
+    expect(
+      screen.getByRole('link', { name: 'Activities' }),
+    ).toHaveAttribute('aria-current', 'page')
+  })
+
+  it('renders activity details from a nested hash route', async () => {
+    window.location.hash = '#activities/run-1'
+
+    render(
+      <ThemeProvider>
+        <App />
+      </ThemeProvider>,
+    )
+
+    expect(
+      await screen.findByRole('heading', { name: 'Activity detail' }),
     ).toBeVisible()
     expect(
       screen.getByRole('link', { name: 'Activities' }),

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { fetchActivities, fetchOverview } from './client'
+import { fetchActivities, fetchActivityDetail, fetchOverview } from './client'
 
 describe('API client', () => {
   afterEach(() => {
@@ -34,6 +34,20 @@ describe('API client', () => {
       '/api/activities?from=2026-08-01&sport_type=1',
       { signal: undefined },
     )
+  })
+
+  it('encodes activity IDs in detail requests', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ activity_id: 'run/1' }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await fetchActivityDetail('run/1')
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/activities/run%2F1', {
+      signal: undefined,
+    })
   })
 
   it('surfaces API errors', async () => {

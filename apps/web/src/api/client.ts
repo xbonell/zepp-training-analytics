@@ -15,6 +15,16 @@ export interface ActivitySummary {
   splat_minutes_estimate: number
 }
 
+export interface HeartRatePoint {
+  elapsed_s: number
+  hr_bpm: number
+  zone: ZoneId | null
+}
+
+export interface ActivityDetail extends ActivitySummary {
+  hr_series: HeartRatePoint[]
+}
+
 export interface OverviewResponse {
   activity_count: number
   duration_s: number
@@ -64,4 +74,11 @@ export function fetchActivities(
   }
   const query = params.toString()
   return getJson(`/api/activities${query ? `?${query}` : ''}`, signal)
+}
+
+export function fetchActivityDetail(
+  activityId: string,
+  signal?: AbortSignal,
+): Promise<ActivityDetail> {
+  return getJson(`/api/activities/${encodeURIComponent(activityId)}`, signal)
 }

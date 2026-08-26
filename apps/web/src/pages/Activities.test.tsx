@@ -43,6 +43,10 @@ describe('Activities page', () => {
     expect(screen.getByText(/10 min/)).toBeVisible()
     expect(screen.getByText('local estimate')).toBeVisible()
     expect(screen.getByText('Z2')).toBeVisible()
+    expect(screen.getByRole('link', { name: /aug 22, 2026/i })).toHaveAttribute(
+      'href',
+      '#activities/ride-1',
+    )
   })
 
   it('requests activities for an applied period and sport', async () => {
