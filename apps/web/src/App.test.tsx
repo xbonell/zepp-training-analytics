@@ -28,6 +28,8 @@ vi.mock('./api/client', async (importOriginal) => {
       hr_series: [],
     }),
     fetchZones: vi.fn().mockResolvedValue({
+      hrmax: 190,
+      source: 'suggested',
       boundaries: {
         below: [0, 100],
         z1: [100, 122],
@@ -36,6 +38,23 @@ vi.mock('./api/client', async (importOriginal) => {
         z4: [168, 184],
         z5: [184, 200],
       },
+      colors: {
+        below: 'gray',
+        z1: 'gray',
+        z2: 'blue',
+        z3: 'green',
+        z4: 'orange',
+        z5: 'red',
+      },
+      age_formula_refs: null,
+    }),
+    fetchProfile: vi.fn().mockResolvedValue({
+      sex: null,
+      birth_date: null,
+      resting_hr: null,
+      hrmax_override: null,
+      theme_preference: 'system',
+      display_timezone: 'Europe/Madrid',
     }),
   }
 })
@@ -93,5 +112,23 @@ describe('application shell', () => {
     expect(
       screen.getByRole('link', { name: 'Activities' }),
     ).toHaveAttribute('aria-current', 'page')
+  })
+
+  it('renders zone settings from the zones route', async () => {
+    window.location.hash = '#zones'
+
+    render(
+      <ThemeProvider>
+        <App />
+      </ThemeProvider>,
+    )
+
+    expect(
+      await screen.findByRole('heading', { name: 'Heart-rate zones' }),
+    ).toBeVisible()
+    expect(screen.getByRole('link', { name: 'Zones' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    )
   })
 })

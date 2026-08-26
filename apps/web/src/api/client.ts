@@ -16,6 +16,15 @@ export interface ZonesResponse {
   } | null
 }
 
+export interface Profile {
+  sex: string | null
+  birth_date: string | null
+  resting_hr: number | null
+  hrmax_override: number | null
+  theme_preference: 'light' | 'dark' | 'system'
+  display_timezone: string
+}
+
 export interface ActivitySummary {
   activity_id: string
   sport_type: number
@@ -98,4 +107,20 @@ export function fetchActivityDetail(
 
 export function fetchZones(signal?: AbortSignal): Promise<ZonesResponse> {
   return getJson('/api/zones', signal)
+}
+
+export function fetchProfile(signal?: AbortSignal): Promise<Profile> {
+  return getJson('/api/settings/profile', signal)
+}
+
+export async function updateProfile(profile: Profile): Promise<Profile> {
+  const response = await fetch('/api/settings/profile', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(profile),
+  })
+  if (!response.ok) {
+    throw new Error(`API request failed (${response.status})`)
+  }
+  return response.json() as Promise<Profile>
 }

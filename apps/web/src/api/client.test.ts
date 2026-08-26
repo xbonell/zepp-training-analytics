@@ -3,7 +3,9 @@ import {
   fetchActivities,
   fetchActivityDetail,
   fetchOverview,
+  fetchProfile,
   fetchZones,
+  updateProfile,
 } from './client'
 
 describe('API client', () => {
@@ -65,6 +67,44 @@ describe('API client', () => {
     await fetchZones()
 
     expect(fetchMock).toHaveBeenCalledWith('/api/zones', { signal: undefined })
+  })
+
+  it('fetches the training profile', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ theme_preference: 'system' }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await fetchProfile()
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/settings/profile', {
+      signal: undefined,
+    })
+  })
+
+  it('saves the complete training profile as JSON', async () => {
+    const profile = {
+      sex: 'female',
+      birth_date: '1990-05-17',
+      resting_hr: 52,
+      hrmax_override: 188,
+      theme_preference: 'dark' as const,
+      display_timezone: 'Europe/Madrid',
+    }
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(profile),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await updateProfile(profile)
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/settings/profile', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(profile),
+    })
   })
 
   it('surfaces API errors', async () => {

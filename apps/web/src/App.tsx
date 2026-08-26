@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Activities } from './pages/Activities'
 import { ActivityDetail } from './pages/ActivityDetail'
 import { Overview } from './pages/Overview'
+import { Zones } from './pages/Zones'
 import { ThemeToggle } from './theme/ThemeProvider'
 
 type Route =
@@ -81,13 +82,7 @@ function App() {
           ) : (
             <Activities />
           ))}
-        {route.name === 'zones' && (
-          <section className="empty-state">
-            <p className="eyebrow">Heart-rate profile</p>
-            <h1>Zones</h1>
-            <p>Zone configuration arrives in the next dashboard view.</p>
-          </section>
-        )}
+        {route.name === 'zones' && <Zones />}
       </main>
 
       <footer>
