@@ -5,9 +5,13 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta, timezone
 from typing import Any
 
+import httpx
+
 from fitness.archive import ArchiveResult, RawArchive
-from fitness.client import ZeppClient
+from fitness.client import ZeppAuthError, ZeppClient
 from fitness.config import Settings
+
+MAX_HISTORY_PAGES = 500
 
 
 @dataclass(frozen=True)
@@ -63,19 +67,44 @@ def _history_start_timestamp(from_date: date | None) -> int | None:
     return int(datetime.combine(from_date, time.min, tzinfo=timezone.utc).timestamp())
 
 
+def _safe_error(operation: str, exc: Exception) -> str:
+    if isinstance(exc, httpx.HTTPStatusError):
+        return f"HTTP {exc.response.status_code} on {operation}"
+    return f"{type(exc).__name__} on {operation}"
+
+
+def _page_is_older_than(summary: list[Any], earliest: int | None) -> bool:
+    if earliest is None or not summary:
+        return False
+    try:
+        return all(
+            isinstance(item, dict) and int(item.get("trackid", "")) < earliest
+            for item in summary
+        )
+    except (TypeError, ValueError):
+        return False
+
+
 def _history_activities(
     client: ZeppClient,
     archive: RawArchive,
     report: SyncReport,
+    from_date: date | None,
 ) -> list[dict[str, Any]]:
     activities: list[dict[str, Any]] = []
     cursor: int | None = None
+    seen_cursors: set[int] = set()
+    earliest = _history_start_timestamp(from_date)
 
-    while True:
+    for _ in range(MAX_HISTORY_PAGES):
+        if cursor is not None:
+            seen_cursors.add(cursor)
         try:
             body = client.get_history(from_track_id=cursor)
+        except ZeppAuthError:
+            raise
         except Exception as exc:
-            report.errors.append(f"history fetch failed at {cursor or 'start'}: {exc}")
+            report.errors.append(_safe_error("history", exc))
             break
 
         name = "start" if cursor is None else str(cursor)
@@ -87,12 +116,14 @@ def _history_activities(
             data = payload.get("data") or {}
             summary = data.get("summary") or []
         except (json.JSONDecodeError, AttributeError) as exc:
-            report.errors.append(f"history parse failed at {name}: {exc}")
+            report.errors.append(_safe_error("history parse failed", exc))
             break
 
         if not summary:
             break
         activities.extend(item for item in summary if isinstance(item, dict))
+        if _page_is_older_than(summary, earliest):
+            break
 
         next_cursor = data.get("next")
         try:
@@ -101,7 +132,12 @@ def _history_activities(
             next_cursor = 0
         if next_cursor <= 0:
             break
+        if next_cursor in seen_cursors:
+            report.errors.append("history cursor repeated")
+            break
         cursor = next_cursor
+    else:
+        report.errors.append(f"history page limit reached ({MAX_HISTORY_PAGES})")
 
     return activities
 
@@ -139,8 +175,10 @@ def _sync_details(
         try:
             body = client.get_detail(track_id, source)
             _record(report, "details", archive.write_bytes(relative, body))
+        except ZeppAuthError:
+            raise
         except Exception as exc:
-            report.errors.append(f"detail fetch failed for {track_id}: {exc}")
+            report.errors.append(_safe_error("activity detail", exc))
 
 
 def _sync_heart_rate(
@@ -150,16 +188,24 @@ def _sync_heart_rate(
     report: SyncReport,
 ) -> None:
     today = _utc_today()
-    day = options.from_date or (today - timedelta(days=6))
+    earliest = today - timedelta(days=89)
+    day = max(options.from_date or (today - timedelta(days=6)), earliest)
 
     while day <= today:
         day_text = day.isoformat()
+        relative = f"heart-rate/{day_text}.json"
+        if (archive.root / relative).exists():
+            report.heart_rate_skipped += 1
+            day += timedelta(days=1)
+            continue
         try:
             body = client.get_heart_rate(day_text, day_text)
-            result = archive.write_bytes(f"heart-rate/{day_text}.json", body)
+            result = archive.write_bytes(relative, body)
             _record(report, "heart_rate", result)
+        except ZeppAuthError:
+            raise
         except Exception as exc:
-            report.errors.append(f"heart-rate fetch failed for {day_text}: {exc}")
+            report.errors.append(_safe_error("heartRate", exc))
         day += timedelta(days=1)
 
 
@@ -190,7 +236,7 @@ def run_sync(
     started_at = datetime.now(timezone.utc)
     report = SyncReport()
 
-    activities = _history_activities(client, archive, report)
+    activities = _history_activities(client, archive, report, options.from_date)
     _sync_details(client, archive, options, report, activities)
     _sync_heart_rate(client, archive, options, report)
 

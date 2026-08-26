@@ -59,6 +59,8 @@ def _run_sync_cmd(from_: Optional[str], activity: Optional[str]) -> None:
     finally:
         client.close()
     typer.echo(report)
+    if report.errors:
+        raise typer.Exit(code=1)
 
 
 @app.command("sync")
