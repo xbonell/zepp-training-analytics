@@ -4,7 +4,7 @@ from __future__ import annotations
 def decode_heart_rate(series: str) -> list[tuple[int, int]]:
     if not series or not series.strip():
         return []
-    points: list[tuple[int, int]] = []
+    by_elapsed: dict[int, int] = {}
     elapsed = 0
     hr: int | None = None
     for raw in series.split(";"):
@@ -21,5 +21,5 @@ def decode_heart_rate(series: str) -> list[tuple[int, int]]:
             raise ValueError(f"invalid heart_rate segment: {seg!r}") from exc
         elapsed += dt
         hr = dv if hr is None else hr + dv
-        points.append((elapsed, hr))
-    return points
+        by_elapsed[elapsed] = hr
+    return sorted(by_elapsed.items())

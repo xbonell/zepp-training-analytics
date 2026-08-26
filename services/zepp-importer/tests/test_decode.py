@@ -19,3 +19,14 @@ def test_decode_keeps_zero_bpm():
 def test_decode_rejects_bad_segment():
     with pytest.raises(ValueError):
         decode_heart_rate("15,98;nope")
+
+
+def test_decode_collapses_duplicate_elapsed_keeping_last_bpm():
+    # dt=0 and negative dt can revisit an elapsed_s; PK keeps last BPM
+    assert decode_heart_rate("10,100;0,5;2,-1") == [(10, 105), (12, 104)]
+    assert decode_heart_rate("5,90;3,1;-1,2;2,0") == [
+        (5, 90),
+        (7, 93),
+        (8, 91),
+        (9, 93),
+    ]
