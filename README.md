@@ -27,20 +27,50 @@ uv run fitness normalize
 `ZEPP_APP_TOKEN` and `ZEPP_USER_ID`; it writes raw responses under `data/raw/`
 by default. Never commit `.env`, captures, or health data.
 
-## Local API
+## Dashboard runbook
+
+The M3 dashboard reads normalized DuckDB data through a local FastAPI service
+and a React/Vite web app. No Zepp network calls are made at runtime.
+
+**Prerequisites:** run `fitness normalize` so `data/zepp.duckdb` exists. Profile
+and theme settings are stored in gitignored `data/profile.json`.
+
+### Terminal 1 — API
 
 ```bash
 cd services/api
 uv sync --extra dev
-uv run uvicorn fitness_api.main:app --reload
+uv run uvicorn fitness_api.main:app --reload --port 8000
 ```
 
-The health endpoint is available at `http://localhost:8000/api/health`.
+Health check: `http://localhost:8000/api/health` (reports DuckDB reachability).
+
+Optional env vars (see `.env.example`): `DUCKDB_PATH`, `PROFILE_PATH`,
+`API_CORS_ORIGIN` (default `http://localhost:5173`).
+
+### Terminal 2 — Web
+
+```bash
+cd apps/web
+npm install
+npm run dev
+```
+
+Open the URL Vite prints (default `http://localhost:5173`). The dev server
+proxies `/api` to `http://127.0.0.1:8000`.
+
+### Optional — both processes
+
+```bash
+./scripts/dev.sh
+```
+
+Starts the API and web dev servers together; stop with Ctrl+C.
 
 ## Documentation
 
 - [Architecture and milestone boundaries](docs/architecture.md)
 - [Zepp authentication](docs/zepp-auth.md)
 - [Provisional Zepp data model](docs/zepp-data-model.md)
-- [Future heart-rate zone models](docs/hr-zone-models.md)
+- [Heart-rate zone models](docs/hr-zone-models.md)
 - [Sanitized examples policy](docs/examples/README.md)

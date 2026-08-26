@@ -76,15 +76,39 @@ and detail `heart_rate` series. `heart_rate_samples` holds all-day band HR from
 midnight + minute index). Workout HR stays in `activity_samples` only.
 Raw-file provenance is retained on each row.
 
+## Milestone 3 slice
+
+M3 exposes normalized DuckDB data through a read-only FastAPI service and a
+React/Vite dashboard (no live Zepp calls):
+
+```text
+data/zepp.duckdb ──► services/api (FastAPI) ──► /api/*
+                              │
+data/profile.json ────────────┤ settings + HRmax override
+                              │
+                              ▼
+                     apps/web (React + Vite)
+                              │
+                              └── Overview · Activities · Detail · Zones
+```
+
+Zone analytics use the OTF-style % MaxHR model (see `docs/hr-zone-models.md`).
+HRmax resolves from profile override or a suggested 99th percentile of workout
+HR samples. Time-in-zone and splat-like estimates are computed in the API from
+workout `activity_samples`; nothing is written back to DuckDB.
+
+API defaults: `data/zepp.duckdb`, `data/profile.json`, CORS for
+`http://localhost:5173`. Web dev proxies `/api` to port 8000.
+
 ## Handoff
 
 - **M2 — persistence:** implemented for activity summaries, workout HR samples
   (`activity_samples`), and band continuous HR (`heart_rate_samples`).
-- **M3 — application:** expose DuckDB through FastAPI and build activity,
-  detail, heart-rate, and zone visualizations in React.
-- **M4 — HR intelligence:** implement configurable zone models, observed HRmax,
-  resting-HR estimation, and trends. Keep Zepp-provided load distinct from
-  locally calculated metrics.
+- **M3 — application:** implemented — FastAPI query layer plus React dashboard
+  (overview, activities, detail, zones, light/dark/system themes).
+- **M4 — HR intelligence:** additional zone models (HRR/Karvonen, manual BPM
+  tables), richer HRmax/RHR estimators, and trends. Keep Zepp-provided load
+  distinct from locally calculated metrics.
 
 The governing principle is: measure first, model second. Unknown source fields
 remain raw rather than receiving inferred meanings.
