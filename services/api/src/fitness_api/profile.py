@@ -3,14 +3,14 @@ from datetime import date
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class Profile(BaseModel):
     sex: str | None = None
     birth_date: date | None = None
     resting_hr: int | None = None
-    hrmax_override: float | None = None
+    hrmax_override: float | None = Field(default=None, gt=0)
     theme_preference: Literal["light", "dark", "system"] = "system"
     display_timezone: str = "Europe/Madrid"
 

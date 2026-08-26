@@ -1,5 +1,6 @@
-from datetime import date
+from datetime import date, datetime
 from typing import Literal
+from zoneinfo import ZoneInfo
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -83,7 +84,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         colors.update({zone: color for zone, _, _, color in OTF_BANDS})
         age_formula_refs = None
         if profile.birth_date is not None:
-            today = date.today()
+            today = datetime.now(ZoneInfo("Europe/Madrid")).date()
             age = today.year - profile.birth_date.year - (
                 (today.month, today.day)
                 < (profile.birth_date.month, profile.birth_date.day)

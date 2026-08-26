@@ -1,8 +1,10 @@
-from datetime import date
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
 
 import duckdb
 from fastapi.testclient import TestClient
 
+import fitness_api.main as main_module
 from fitness_api.config import Settings
 from fitness_api.main import create_app
 
@@ -132,6 +134,29 @@ def test_zones_resolves_suggested_hrmax_and_age_references(tmp_path):
     }
 
 
+def test_zones_uses_madrid_date_for_age(tmp_path, monkeypatch):
+    client = make_client(tmp_path)
+
+    class UtcDate(date):
+        @classmethod
+        def today(cls):
+            return cls(2026, 8, 26)
+
+    class MadridDateTime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            assert tz == ZoneInfo("Europe/Madrid")
+            return cls(2026, 8, 27, 0, 30, tzinfo=tz)
+
+    monkeypatch.setattr(main_module, "date", UtcDate)
+    monkeypatch.setattr(main_module, "datetime", MadridDateTime, raising=False)
+    client.put("/api/settings/profile", json={"birth_date": "2000-08-27"})
+
+    payload = client.get("/api/zones").json()
+
+    assert payload["age_formula_refs"]["age"] == 26
+
+
 def test_zones_prefers_profile_override(tmp_path):
     client = make_client(tmp_path)
     client.put("/api/settings/profile", json={"hrmax_override": 200})
@@ -219,3 +244,15 @@ def test_profile_endpoints_round_trip(tmp_path):
     assert put_response.status_code == 200
     assert put_response.json() == profile
     assert client.get("/api/settings/profile").json() == profile
+
+
+def test_profile_rejects_non_positive_hrmax_override(tmp_path):
+    client = make_client(tmp_path)
+
+    for override in (0, -1):
+        response = client.put(
+            "/api/settings/profile",
+            json={"hrmax_override": override},
+        )
+
+        assert response.status_code == 422
