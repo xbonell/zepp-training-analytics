@@ -241,7 +241,6 @@ export function Zones() {
                 changeField('hrmaxOverride', event.currentTarget.value)
               }
             />
-            <small>Leave blank to use the suggested value.</small>
           </label>
           <label>
             <span>Resting heart rate</span>

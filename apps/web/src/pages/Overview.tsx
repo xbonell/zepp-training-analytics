@@ -95,7 +95,6 @@ export function Overview() {
               ? '—'
               : `${overview.peak_hr_bpm} bpm`}
           </strong>
-          <small>Highest workout sample</small>
         </div>
       </section>
 
