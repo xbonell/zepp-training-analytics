@@ -8,6 +8,7 @@ import typer
 from fitness.archive import RawArchive
 from fitness.client import ZeppAuthError, ZeppClient
 from fitness.config import ConfigError, credentials_ready, load_settings, require_credentials
+from fitness.normalize.load import run_normalize
 from fitness.sync import SyncOptions, run_sync
 
 app = typer.Typer(add_completion=False, no_args_is_help=True)
@@ -78,3 +79,13 @@ def import_cmd(
 ) -> None:
     """Alias of sync for Milestone 1."""
     _run_sync_cmd(from_, activity)
+
+
+@app.command("normalize")
+def normalize_cmd() -> None:
+    """Load raw archives into local DuckDB (offline)."""
+    settings = load_settings()
+    report = run_normalize(settings.data_raw_dir, settings.duckdb_path)
+    typer.echo(report)
+    if report.errors:
+        raise typer.Exit(code=1)

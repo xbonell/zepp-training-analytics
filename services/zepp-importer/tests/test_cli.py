@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from typer.testing import CliRunner
 
 from fitness.client import ZeppAuthError
@@ -75,3 +77,20 @@ def test_sync_report_errors_exit_nonzero(monkeypatch, tmp_path):
 
     assert result.exit_code == 1
     assert "errors=1" in result.output
+
+
+def test_normalize_cli_writes_duckdb(tmp_path, monkeypatch):
+    raw = tmp_path / "raw"
+    (raw / "activity-lists").mkdir(parents=True)
+    (raw / "activity-details").mkdir(parents=True)
+    list_src = Path(__file__).parent / "fixtures" / "normalize_list.json"
+    detail_src = Path(__file__).parent / "fixtures" / "normalize_detail.json"
+    (raw / "activity-lists" / "trackid-start.json").write_bytes(list_src.read_bytes())
+    (raw / "activity-details" / "1700000100.json").write_bytes(detail_src.read_bytes())
+    db = tmp_path / "out.duckdb"
+    monkeypatch.setenv("DATA_RAW_DIR", str(raw))
+    monkeypatch.setenv("DUCKDB_PATH", str(db))
+    result = runner.invoke(app, ["normalize"])
+    assert result.exit_code == 0, result.output
+    assert db.exists()
+    assert "activities_upserted=" in result.output
