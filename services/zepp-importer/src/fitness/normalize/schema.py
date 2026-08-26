@@ -36,7 +36,19 @@ CREATE TABLE IF NOT EXISTS activity_samples (
 );
 """
 
+HEART_RATE_SAMPLES_DDL = """
+CREATE TABLE IF NOT EXISTS heart_rate_samples (
+  recorded_at TIMESTAMPTZ,
+  hr_bpm INTEGER,
+  source VARCHAR,
+  raw_file VARCHAR,
+  content_sha256 VARCHAR,
+  PRIMARY KEY (recorded_at, source)
+);
+"""
+
 
 def ensure_schema(conn: duckdb.DuckDBPyConnection) -> None:
     conn.execute(ACTIVITIES_DDL)
     conn.execute(SAMPLES_DDL)
+    conn.execute(HEART_RATE_SAMPLES_DDL)
