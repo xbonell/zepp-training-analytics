@@ -78,7 +78,8 @@ describe('Zones settings page', () => {
     const z4Row = screen.getByRole('row', { name: /Z4/ })
     expect(z4Row).toHaveTextContent('84–91%')
     expect(z4Row).toHaveTextContent('160–174 bpm')
-    expect(z4Row.querySelector('[data-color="orange"]')).toBeInTheDocument()
+    expect(z4Row.querySelector('.zone-z4')).toBeInTheDocument()
+    expect(z4Row.querySelector('i')).not.toHaveAttribute('style')
   })
 
   it('saves editable profile fields while preserving profile preferences', async () => {

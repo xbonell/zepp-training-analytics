@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
   fetchActivities,
+  fetchProfile,
   type ActivityFilters,
   type ActivitySummary,
 } from '../api/client'
@@ -11,6 +12,15 @@ export function Activities() {
   const [filters, setFilters] = useState<ActivityFilters>({})
   const [activities, setActivities] = useState<ActivitySummary[]>()
   const [error, setError] = useState('')
+  const [timeZone, setTimeZone] = useState('Europe/Madrid')
+
+  useEffect(() => {
+    const controller = new AbortController()
+    fetchProfile(controller.signal)
+      .then((profile) => setTimeZone(profile.display_timezone))
+      .catch(() => undefined)
+    return () => controller.abort()
+  }, [])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -59,7 +69,7 @@ export function Activities() {
             <p>Try a wider period or clear the sport filter.</p>
           </div>
         ) : (
-          <ActivityTable activities={activities} />
+          <ActivityTable activities={activities} timeZone={timeZone} />
         )}
       </section>
     </>

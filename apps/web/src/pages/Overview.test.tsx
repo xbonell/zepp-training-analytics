@@ -1,12 +1,12 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fetchOverview } from '../api/client'
+import { fetchOverview, fetchProfile } from '../api/client'
 import { Overview } from './Overview'
 
 vi.mock('../api/client', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../api/client')>()
-  return { ...actual, fetchOverview: vi.fn() }
+  return { ...actual, fetchOverview: vi.fn(), fetchProfile: vi.fn() }
 })
 
 const overview = {
@@ -41,6 +41,14 @@ describe('Overview page', () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     vi.setSystemTime(new Date(2026, 7, 26, 12))
     vi.mocked(fetchOverview).mockResolvedValue(overview)
+    vi.mocked(fetchProfile).mockResolvedValue({
+      sex: null,
+      birth_date: null,
+      resting_hr: null,
+      hrmax_override: null,
+      theme_preference: 'system',
+      display_timezone: 'Europe/Madrid',
+    })
   })
 
   afterEach(() => {

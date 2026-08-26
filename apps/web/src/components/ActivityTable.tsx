@@ -8,6 +8,7 @@ import {
 interface ActivityTableProps {
   activities: ActivitySummary[]
   compact?: boolean
+  timeZone?: string
 }
 
 function formatDuration(seconds?: number | null) {
@@ -21,10 +22,11 @@ function formatDistance(metres?: number | null) {
   return metres == null ? '—' : `${(metres / 1000).toFixed(1)} km`
 }
 
-function formatDate(value: string) {
+function formatDate(value: string, timeZone: string) {
   return new Intl.DateTimeFormat(undefined, {
     dateStyle: 'medium',
     timeStyle: 'short',
+    timeZone,
   }).format(new Date(value))
 }
 
@@ -48,6 +50,7 @@ function ZoneChip({ zones }: { zones: ZoneTotals }) {
 export function ActivityTable({
   activities,
   compact = false,
+  timeZone = 'Europe/Madrid',
 }: ActivityTableProps) {
   return (
     <div className="activity-table-wrap">
@@ -71,7 +74,7 @@ export function ActivityTable({
                   className="activity-link"
                   href={`#activities/${encodeURIComponent(activity.activity_id)}`}
                 >
-                  {formatDate(activity.started_at)}
+                  {formatDate(activity.started_at, timeZone)}
                 </a>
               </td>
               <td data-label="Sport">Sport {activity.sport_type}</td>

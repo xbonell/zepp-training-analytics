@@ -19,4 +19,5 @@ cd "$ROOT/apps/web"
 npm run dev &
 WEB_PID=$!
 
-wait -n "$API_PID" "$WEB_PID"
+# Plain wait keeps this compatible with the macOS Bash 3.2 default.
+wait

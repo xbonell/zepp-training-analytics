@@ -32,17 +32,28 @@ from fitness_api.zones import (
     time_in_zones,
 )
 
+DATABASE_UNAVAILABLE_DETAIL = (
+    "Activity database unavailable; run `fitness normalize` first"
+)
+
 
 def _resolved_hrmax(
     settings: Settings,
 ) -> tuple[float | None, Literal["override", "suggested", "none"]]:
     override = load_profile(settings.profile_path).hrmax_override
     if override is not None:
-        return float(override), "override"
+        return round(float(override), 1), "override"
+    if not duckdb_available(settings.duckdb_path):
+        return None, "none"
     suggestion = suggested_hrmax(settings.duckdb_path)
     if suggestion is not None:
-        return suggestion, "suggested"
+        return round(suggestion, 1), "suggested"
     return None, "none"
+
+
+def _require_duckdb(settings: Settings) -> None:
+    if not duckdb_available(settings.duckdb_path):
+        raise HTTPException(status_code=503, detail=DATABASE_UNAVAILABLE_DETAIL)
 
 
 def _empty_zone_totals() -> dict:
@@ -124,6 +135,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         to_date: date | None = Query(default=None, alias="to"),
         sport_type: int | None = None,
     ) -> list[dict]:
+        _require_duckdb(app_settings)
         activity_rows = list_activities(
             app_settings.duckdb_path,
             from_date=from_date,
@@ -140,6 +152,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/api/activities/{activity_id}", response_model=ActivityDetail)
     def activity_detail(activity_id: str) -> dict:
+        _require_duckdb(app_settings)
         activity = get_activity(app_settings.duckdb_path, activity_id)
         if activity is None:
             raise HTTPException(status_code=404, detail="Activity not found")
@@ -165,6 +178,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         from_date: date | None = Query(default=None, alias="from"),
         to_date: date | None = Query(default=None, alias="to"),
     ) -> OverviewResponse:
+        _require_duckdb(app_settings)
         count, duration = overview_totals(
             app_settings.duckdb_path,
             from_date=from_date,

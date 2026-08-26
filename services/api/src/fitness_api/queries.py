@@ -30,7 +30,7 @@ def suggested_hrmax(path: Path) -> float | None:
             WHERE hr_bpm > 0
             """
         ).fetchone()
-    return float(row[0]) if row and row[0] is not None else None
+    return round(float(row[0]), 1) if row and row[0] is not None else None
 
 
 def list_activities(

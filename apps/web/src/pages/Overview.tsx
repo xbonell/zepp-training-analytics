@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
   fetchOverview,
+  fetchProfile,
   type OverviewFilters,
   type OverviewResponse,
 } from '../api/client'
@@ -23,6 +24,15 @@ export function Overview() {
   const [error, setError] = useState('')
   const [filters, setFilters] = useState<OverviewFilters>({})
   const [period, setPeriod] = useState<PeriodPreset>('all')
+  const [timeZone, setTimeZone] = useState('Europe/Madrid')
+
+  useEffect(() => {
+    const controller = new AbortController()
+    fetchProfile(controller.signal)
+      .then((profile) => setTimeZone(profile.display_timezone))
+      .catch(() => undefined)
+    return () => controller.abort()
+  }, [])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -110,7 +120,11 @@ export function Overview() {
               </div>
               <a href="#activities">View all</a>
             </div>
-            <ActivityTable activities={overview.recent} compact />
+            <ActivityTable
+              activities={overview.recent}
+              compact
+              timeZone={timeZone}
+            />
           </section>
         </>
       )}

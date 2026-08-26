@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
   fetchActivityDetail,
+  fetchProfile,
   fetchZones,
   zoneIds,
   type ActivityDetail as ActivityDetailData,
@@ -16,6 +17,8 @@ interface LoadState {
   activityId?: string
   activity?: ActivityDetailData
   boundaries?: ZoneBoundaries
+  timeZone?: string
+  zonesUnavailable?: boolean
   error?: string
 }
 
@@ -29,10 +32,11 @@ function formatClock(seconds: number) {
     : `${String(minutes).padStart(2, '0')}:${String(remainder).padStart(2, '0')}`
 }
 
-function formatDate(value: string) {
+function formatDate(value: string, timeZone: string) {
   return new Intl.DateTimeFormat(undefined, {
     dateStyle: 'long',
     timeStyle: 'short',
+    timeZone,
   }).format(new Date(value))
 }
 
@@ -41,21 +45,35 @@ export function ActivityDetail({ activityId }: ActivityDetailProps) {
 
   useEffect(() => {
     const controller = new AbortController()
-    Promise.all([
+    Promise.allSettled([
       fetchActivityDetail(activityId, controller.signal),
       fetchZones(controller.signal),
+      fetchProfile(controller.signal),
     ])
-      .then(([activity, zones]) =>
-        setLoadState({ activityId, activity, boundaries: zones.boundaries }),
-      )
-      .catch((reason: unknown) => {
-        if (!controller.signal.aborted) {
+      .then(([activityResult, zonesResult, profileResult]) => {
+        if (controller.signal.aborted) return
+        if (activityResult.status === 'rejected') {
+          const reason: unknown = activityResult.reason
           setLoadState({
             activityId,
             error:
               reason instanceof Error ? reason.message : 'Unable to load data',
           })
+          return
         }
+        setLoadState({
+          activityId,
+          activity: activityResult.value,
+          boundaries:
+            zonesResult.status === 'fulfilled'
+              ? zonesResult.value.boundaries
+              : {},
+          timeZone:
+            profileResult.status === 'fulfilled'
+              ? profileResult.value.display_timezone
+              : 'Europe/Madrid',
+          zonesUnavailable: zonesResult.status === 'rejected',
+        })
       })
     return () => controller.abort()
   }, [activityId])
@@ -66,6 +84,12 @@ export function ActivityDetail({ activityId }: ActivityDetailProps) {
     loadState.activityId === activityId ? loadState.activity : undefined
   const boundaries =
     loadState.activityId === activityId ? loadState.boundaries : undefined
+  const timeZone =
+    loadState.activityId === activityId
+      ? (loadState.timeZone ?? 'Europe/Madrid')
+      : 'Europe/Madrid'
+  const zonesUnavailable =
+    loadState.activityId === activityId && loadState.zonesUnavailable
 
   if (error) {
     return (
@@ -80,7 +104,7 @@ export function ActivityDetail({ activityId }: ActivityDetailProps) {
     )
   }
 
-  if (!activity || !boundaries) {
+  if (!activity) {
     return <p className="loading-message">Reading local activity detail…</p>
   }
 
@@ -99,7 +123,7 @@ export function ActivityDetail({ activityId }: ActivityDetailProps) {
           <p className="eyebrow">Sport {activity.sport_type}</p>
           <h1>Activity detail</h1>
         </div>
-        <p className="detail-date">{formatDate(activity.started_at)}</p>
+        <p className="detail-date">{formatDate(activity.started_at, timeZone)}</p>
       </div>
 
       <section className="metrics detail-metrics" aria-label="Activity metrics">
@@ -131,7 +155,10 @@ export function ActivityDetail({ activityId }: ActivityDetailProps) {
           <h2>Heart rate</h2>
           <small>{activity.hr_series.length} samples</small>
         </div>
-        <HrZoneChart series={activity.hr_series} boundaries={boundaries} />
+        {zonesUnavailable && (
+          <p className="inline-note">Zone boundaries unavailable.</p>
+        )}
+        <HrZoneChart series={activity.hr_series} boundaries={boundaries ?? {}} />
       </section>
 
       <section className="data-section zone-breakdown">

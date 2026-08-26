@@ -1,17 +1,22 @@
 import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fetchActivityDetail, fetchZones } from '../api/client'
+import { fetchActivityDetail, fetchProfile, fetchZones } from '../api/client'
 import { ActivityDetail } from './ActivityDetail'
 
 vi.mock('../api/client', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../api/client')>()
-  return { ...actual, fetchActivityDetail: vi.fn(), fetchZones: vi.fn() }
+  return {
+    ...actual,
+    fetchActivityDetail: vi.fn(),
+    fetchProfile: vi.fn(),
+    fetchZones: vi.fn(),
+  }
 })
 
 const detail = {
   activity_id: 'run-1',
   sport_type: 1,
-  started_at: '2026-08-22T17:00:00Z',
+  started_at: '2026-08-22T23:30:00Z',
   duration_s: 120,
   distance_m: 800,
   avg_hr: 130,
@@ -51,6 +56,14 @@ describe('Activity detail page', () => {
   beforeEach(() => {
     vi.mocked(fetchActivityDetail).mockResolvedValue(detail)
     vi.mocked(fetchZones).mockResolvedValue(zones)
+    vi.mocked(fetchProfile).mockResolvedValue({
+      sex: null,
+      birth_date: null,
+      resting_hr: null,
+      hrmax_override: null,
+      theme_preference: 'system',
+      display_timezone: 'Europe/Madrid',
+    })
   })
 
   it('loads the activity chart and local zone estimates', async () => {
@@ -64,6 +77,7 @@ describe('Activity detail page', () => {
       expect.any(AbortSignal),
     )
     expect(fetchZones).toHaveBeenCalledWith(expect.any(AbortSignal))
+    expect(screen.getByText(/August 23, 2026/i)).toBeVisible()
     expect(screen.getByRole('img', { name: /heart rate from 100 to 150/i })).toBeVisible()
     expect(screen.getByText('1 min')).toBeVisible()
     expect(screen.getByText('local estimate')).toBeVisible()
@@ -78,5 +92,16 @@ describe('Activity detail page', () => {
 
     expect(await screen.findByText('Activity unavailable')).toBeVisible()
     expect(screen.getByText('Not found')).toBeVisible()
+  })
+
+  it('still displays activity detail when zones fail', async () => {
+    vi.mocked(fetchZones).mockRejectedValueOnce(new Error('Zones unavailable'))
+
+    render(<ActivityDetail activityId="run-1" />)
+
+    expect(
+      await screen.findByRole('heading', { name: 'Activity detail' }),
+    ).toBeVisible()
+    expect(screen.getByText('Zone boundaries unavailable.')).toBeVisible()
   })
 })

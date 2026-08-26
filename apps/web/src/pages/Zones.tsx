@@ -204,8 +204,7 @@ export function Zones() {
                   <td>
                     <i
                       aria-hidden="true"
-                      data-color={zones.colors[zone.id]}
-                      style={{ backgroundColor: zones.colors[zone.id] }}
+                      className={`zone-${zone.id}`}
                     />
                     <strong>{zone.id.toUpperCase()}</strong>
                   </td>

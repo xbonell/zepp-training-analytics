@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 import fitness_api.main as main_module
 from fitness_api.config import Settings
 from fitness_api.main import create_app
+from fitness_api.queries import suggested_hrmax
 
 
 def seed_database(path):
@@ -106,6 +107,55 @@ def make_client(tmp_path):
     return TestClient(create_app(settings))
 
 
+def make_client_without_database(tmp_path):
+    settings = Settings(
+        duckdb_path=tmp_path / "missing.duckdb",
+        profile_path=tmp_path / "profile.json",
+        _env_file=None,
+    )
+    return TestClient(create_app(settings))
+
+
+def test_suggested_hrmax_uses_duckdb_quantile_and_rounds_for_display(tmp_path):
+    db_path = tmp_path / "quantile.duckdb"
+    with duckdb.connect(str(db_path)) as conn:
+        conn.execute("CREATE TABLE activity_samples (hr_bpm INTEGER)")
+        conn.executemany(
+            "INSERT INTO activity_samples VALUES (?)",
+            [(100,), (183,)],
+        )
+
+    assert suggested_hrmax(db_path) == 182.2
+
+
+def test_data_endpoints_return_actionable_503_without_database(tmp_path):
+    client = make_client_without_database(tmp_path)
+
+    for path in ("/api/overview", "/api/activities", "/api/activities/run-1"):
+        response = client.get(path)
+        assert response.status_code == 503
+        assert response.json() == {
+            "detail": "Activity database unavailable; run `fitness normalize` first"
+        }
+
+
+def test_zones_remains_available_without_database(tmp_path):
+    client = make_client_without_database(tmp_path)
+    client.put(
+        "/api/settings/profile",
+        json={"birth_date": "1990-01-01", "theme_preference": "system"},
+    )
+
+    response = client.get("/api/zones")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["hrmax"] is None
+    assert payload["source"] == "none"
+    assert payload["boundaries"] == {}
+    assert payload["age_formula_refs"] is not None
+
+
 def test_zones_resolves_suggested_hrmax_and_age_references(tmp_path):
     client = make_client(tmp_path)
     client.put(
@@ -132,6 +182,15 @@ def test_zones_resolves_suggested_hrmax_and_age_references(tmp_path):
         "fox_220_minus_age": 220 - age,
         "tanaka_208_minus_0_7_age": 208 - 0.7 * age,
     }
+
+
+def test_zones_rounds_resolved_hrmax_to_one_decimal(tmp_path, monkeypatch):
+    monkeypatch.setattr(main_module, "suggested_hrmax", lambda path: 183.27999999999997)
+    client = make_client(tmp_path)
+
+    payload = client.get("/api/zones").json()
+
+    assert payload["hrmax"] == 183.3
 
 
 def test_zones_uses_madrid_date_for_age(tmp_path, monkeypatch):

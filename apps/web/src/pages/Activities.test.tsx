@@ -1,18 +1,18 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fetchActivities } from '../api/client'
+import { fetchActivities, fetchProfile } from '../api/client'
 import { Activities } from './Activities'
 
 vi.mock('../api/client', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../api/client')>()
-  return { ...actual, fetchActivities: vi.fn() }
+  return { ...actual, fetchActivities: vi.fn(), fetchProfile: vi.fn() }
 })
 
 const activity = {
   activity_id: 'ride-1',
   sport_type: 2,
-  started_at: '2026-08-22T17:00:00Z',
+  started_at: '2026-08-22T23:30:00Z',
   duration_s: 2700,
   distance_m: 18400,
   avg_hr: 142,
@@ -26,6 +26,14 @@ describe('Activities page', () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     vi.setSystemTime(new Date(2026, 7, 26, 12))
     vi.mocked(fetchActivities).mockResolvedValue([activity])
+    vi.mocked(fetchProfile).mockResolvedValue({
+      sex: null,
+      birth_date: null,
+      resting_hr: null,
+      hrmax_override: null,
+      theme_preference: 'system',
+      display_timezone: 'Europe/Madrid',
+    })
   })
 
   afterEach(() => {
@@ -43,7 +51,7 @@ describe('Activities page', () => {
     expect(screen.getByText(/10 min/)).toBeVisible()
     expect(screen.getByText('local estimate')).toBeVisible()
     expect(screen.getByText('Z2')).toBeVisible()
-    expect(screen.getByRole('link', { name: /aug 22, 2026/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /aug 23, 2026/i })).toHaveAttribute(
       'href',
       '#activities/ride-1',
     )
