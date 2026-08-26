@@ -1,6 +1,24 @@
+import { useEffect, useState } from 'react'
+import { Activities } from './pages/Activities'
+import { Overview } from './pages/Overview'
 import { ThemeToggle } from './theme/ThemeProvider'
 
+type Route = 'overview' | 'activities' | 'zones'
+
+function currentRoute(): Route {
+  const route = window.location.hash.slice(1)
+  return route === 'activities' || route === 'zones' ? route : 'overview'
+}
+
 function App() {
+  const [route, setRoute] = useState<Route>(currentRoute)
+
+  useEffect(() => {
+    const handleRouteChange = () => setRoute(currentRoute())
+    window.addEventListener('hashchange', handleRouteChange)
+    return () => window.removeEventListener('hashchange', handleRouteChange)
+  }, [])
+
   return (
     <div className="app-shell">
       <header className="site-header">
@@ -15,54 +33,42 @@ function App() {
         </a>
 
         <nav className="primary-nav" aria-label="Primary navigation">
-          <a className="is-active" href="#overview" aria-current="page">
+          <a
+            className={route === 'overview' ? 'is-active' : undefined}
+            href="#overview"
+            aria-current={route === 'overview' ? 'page' : undefined}
+          >
             Overview
           </a>
-          <a href="#activities">Activities</a>
-          <a href="#zones">Zones</a>
+          <a
+            className={route === 'activities' ? 'is-active' : undefined}
+            href="#activities"
+            aria-current={route === 'activities' ? 'page' : undefined}
+          >
+            Activities
+          </a>
+          <a
+            className={route === 'zones' ? 'is-active' : undefined}
+            href="#zones"
+            aria-current={route === 'zones' ? 'page' : undefined}
+          >
+            Zones
+          </a>
         </nav>
 
         <ThemeToggle />
       </header>
 
-      <main id="overview">
-        <div className="page-heading">
-          <div>
-            <p className="eyebrow">Training overview</p>
-            <h1>Your effort, in focus.</h1>
-          </div>
-          <p className="status">
-            <span aria-hidden="true" />
-            Ready for activity data
-          </p>
-        </div>
-
-        <section className="empty-state" aria-labelledby="empty-state-title">
-          <div className="pulse-glyph" aria-hidden="true">
-            <span />
-          </div>
-          <p className="eyebrow">No sessions synced</p>
-          <h2 id="empty-state-title">Start with your latest workout.</h2>
-          <p>
-            Training load, heart-rate zones, and activity trends will appear
-            here once the API returns activity data.
-          </p>
-        </section>
-
-        <section className="zone-legend" aria-label="Heart rate zone scale">
-          <div className="zone-legend__label">
-            <span>Heart-rate zones</span>
-            <small>Below · Z1–Z5</small>
-          </div>
-          <div className="zone-scale" aria-hidden="true">
-            <span className="zone-below" />
-            <span className="zone-z1" />
-            <span className="zone-z2" />
-            <span className="zone-z3" />
-            <span className="zone-z4" />
-            <span className="zone-z5" />
-          </div>
-        </section>
+      <main id={route}>
+        {route === 'overview' && <Overview />}
+        {route === 'activities' && <Activities />}
+        {route === 'zones' && (
+          <section className="empty-state">
+            <p className="eyebrow">Heart-rate profile</p>
+            <h1>Zones</h1>
+            <p>Zone configuration arrives in the next dashboard view.</p>
+          </section>
+        )}
       </main>
 
       <footer>
