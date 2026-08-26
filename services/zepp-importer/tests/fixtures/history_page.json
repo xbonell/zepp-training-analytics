@@ -1,0 +1,18 @@
+{
+  "code": 1,
+  "message": "success",
+  "data": {
+    "next": 0,
+    "summary": [
+      {
+        "trackid": "1700000000",
+        "source": "run.mifit.huami.com",
+        "type": 8,
+        "run_time": "3600",
+        "avg_heart_rate": "120",
+        "max_heart_rate": 150,
+        "app_name": "com.xiaomi.hm.health"
+      }
+    ]
+  }
+}
