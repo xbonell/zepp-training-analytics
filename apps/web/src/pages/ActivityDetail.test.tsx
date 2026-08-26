@@ -1,11 +1,11 @@
 import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fetchActivityDetail } from '../api/client'
+import { fetchActivityDetail, fetchZones } from '../api/client'
 import { ActivityDetail } from './ActivityDetail'
 
 vi.mock('../api/client', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../api/client')>()
-  return { ...actual, fetchActivityDetail: vi.fn() }
+  return { ...actual, fetchActivityDetail: vi.fn(), fetchZones: vi.fn() }
 })
 
 const detail = {
@@ -25,9 +25,32 @@ const detail = {
   ],
 }
 
+const zones = {
+  hrmax: 200,
+  source: 'override' as const,
+  boundaries: {
+    below: [0, 100] as [number, number],
+    z1: [100, 122] as [number, number],
+    z2: [122, 142] as [number, number],
+    z3: [142, 168] as [number, number],
+    z4: [168, 184] as [number, number],
+    z5: [184, 200] as [number, number],
+  },
+  colors: {
+    below: 'gray',
+    z1: 'gray',
+    z2: 'blue',
+    z3: 'green',
+    z4: 'orange',
+    z5: 'red',
+  },
+  age_formula_refs: null,
+}
+
 describe('Activity detail page', () => {
   beforeEach(() => {
     vi.mocked(fetchActivityDetail).mockResolvedValue(detail)
+    vi.mocked(fetchZones).mockResolvedValue(zones)
   })
 
   it('loads the activity chart and local zone estimates', async () => {
@@ -40,6 +63,7 @@ describe('Activity detail page', () => {
       'run-1',
       expect.any(AbortSignal),
     )
+    expect(fetchZones).toHaveBeenCalledWith(expect.any(AbortSignal))
     expect(screen.getByRole('img', { name: /heart rate from 100 to 150/i })).toBeVisible()
     expect(screen.getByText('1 min')).toBeVisible()
     expect(screen.getByText('local estimate')).toBeVisible()

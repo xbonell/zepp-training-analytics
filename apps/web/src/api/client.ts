@@ -2,6 +2,19 @@ export const zoneIds = ['below', 'z1', 'z2', 'z3', 'z4', 'z5'] as const
 
 export type ZoneId = (typeof zoneIds)[number]
 export type ZoneTotals = Record<ZoneId, number>
+export type ZoneBoundaries = Partial<Record<ZoneId, readonly [number, number]>>
+
+export interface ZonesResponse {
+  hrmax: number | null
+  source: 'override' | 'suggested' | 'none'
+  boundaries: ZoneBoundaries
+  colors: Record<ZoneId, string>
+  age_formula_refs: {
+    age: number
+    fox_220_minus_age: number
+    tanaka_208_minus_0_7_age: number
+  } | null
+}
 
 export interface ActivitySummary {
   activity_id: string
@@ -81,4 +94,8 @@ export function fetchActivityDetail(
   signal?: AbortSignal,
 ): Promise<ActivityDetail> {
   return getJson(`/api/activities/${encodeURIComponent(activityId)}`, signal)
+}
+
+export function fetchZones(signal?: AbortSignal): Promise<ZonesResponse> {
+  return getJson('/api/zones', signal)
 }

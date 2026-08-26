@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import {
   fetchActivityDetail,
+  fetchZones,
   zoneIds,
   type ActivityDetail as ActivityDetailData,
+  type ZoneBoundaries,
 } from '../api/client'
 import { HrZoneChart } from '../components/HrZoneChart'
 
@@ -13,6 +15,7 @@ interface ActivityDetailProps {
 interface LoadState {
   activityId?: string
   activity?: ActivityDetailData
+  boundaries?: ZoneBoundaries
   error?: string
 }
 
@@ -38,8 +41,13 @@ export function ActivityDetail({ activityId }: ActivityDetailProps) {
 
   useEffect(() => {
     const controller = new AbortController()
-    fetchActivityDetail(activityId, controller.signal)
-      .then((activity) => setLoadState({ activityId, activity }))
+    Promise.all([
+      fetchActivityDetail(activityId, controller.signal),
+      fetchZones(controller.signal),
+    ])
+      .then(([activity, zones]) =>
+        setLoadState({ activityId, activity, boundaries: zones.boundaries }),
+      )
       .catch((reason: unknown) => {
         if (!controller.signal.aborted) {
           setLoadState({
@@ -56,6 +64,8 @@ export function ActivityDetail({ activityId }: ActivityDetailProps) {
     loadState.activityId === activityId ? loadState.error : undefined
   const activity =
     loadState.activityId === activityId ? loadState.activity : undefined
+  const boundaries =
+    loadState.activityId === activityId ? loadState.boundaries : undefined
 
   if (error) {
     return (
@@ -70,7 +80,7 @@ export function ActivityDetail({ activityId }: ActivityDetailProps) {
     )
   }
 
-  if (!activity) {
+  if (!activity || !boundaries) {
     return <p className="loading-message">Reading local activity detail…</p>
   }
 
@@ -121,7 +131,7 @@ export function ActivityDetail({ activityId }: ActivityDetailProps) {
           <h2>Heart rate</h2>
           <small>{activity.hr_series.length} samples</small>
         </div>
-        <HrZoneChart series={activity.hr_series} />
+        <HrZoneChart series={activity.hr_series} boundaries={boundaries} />
       </section>
 
       <section className="data-section zone-breakdown">

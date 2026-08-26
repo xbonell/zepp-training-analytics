@@ -27,6 +27,16 @@ vi.mock('./api/client', async (importOriginal) => {
       splat_minutes_estimate: 1,
       hr_series: [],
     }),
+    fetchZones: vi.fn().mockResolvedValue({
+      boundaries: {
+        below: [0, 100],
+        z1: [100, 122],
+        z2: [122, 142],
+        z3: [142, 168],
+        z4: [168, 184],
+        z5: [184, 200],
+      },
+    }),
   }
 })
 

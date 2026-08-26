@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { fetchActivities, fetchActivityDetail, fetchOverview } from './client'
+import {
+  fetchActivities,
+  fetchActivityDetail,
+  fetchOverview,
+  fetchZones,
+} from './client'
 
 describe('API client', () => {
   afterEach(() => {
@@ -48,6 +53,18 @@ describe('API client', () => {
     expect(fetchMock).toHaveBeenCalledWith('/api/activities/run%2F1', {
       signal: undefined,
     })
+  })
+
+  it('fetches BPM zone boundaries', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ boundaries: { z4: [168, 184] } }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await fetchZones()
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/zones', { signal: undefined })
   })
 
   it('surfaces API errors', async () => {

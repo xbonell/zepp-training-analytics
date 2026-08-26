@@ -1,7 +1,12 @@
-import { type HeartRatePoint, type ZoneId } from '../api/client'
+import {
+  type HeartRatePoint,
+  type ZoneBoundaries,
+  type ZoneId,
+} from '../api/client'
 
 interface HrZoneChartProps {
   series: HeartRatePoint[]
+  boundaries: ZoneBoundaries
 }
 
 const width = 900
@@ -15,7 +20,7 @@ function durationLabel(seconds: number) {
   return `${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`
 }
 
-export function HrZoneChart({ series }: HrZoneChartProps) {
+export function HrZoneChart({ series, boundaries }: HrZoneChartProps) {
   if (series.length === 0) {
     return <p className="chart-empty">No heart-rate samples recorded.</p>
   }
@@ -24,19 +29,19 @@ export function HrZoneChart({ series }: HrZoneChartProps) {
   const minHr = Math.min(...heartRates)
   const maxHr = Math.max(...heartRates)
   const lastElapsed = Math.max(...series.map((point) => point.elapsed_s))
-  const hrSpan = Math.max(maxHr - minHr, 1)
+  const boundaryValues = Object.values(boundaries).flatMap((boundary) =>
+    boundary ? [...boundary] : [],
+  )
+  const domainMin = Math.min(minHr, ...boundaryValues)
+  const domainMax = Math.max(maxHr, ...boundaryValues)
+  const hrSpan = Math.max(domainMax - domainMin, 1)
   const timeSpan = Math.max(lastElapsed, 1)
-  const bandHeight = plot.height / chartZones.length
+  const yForBpm = (bpm: number) =>
+    plot.top + ((domainMax - bpm) / hrSpan) * plot.height
   const points = series
     .map((point) => {
       const x = plot.left + (point.elapsed_s / timeSpan) * plot.width
-      const normalizedHr = (point.hr_bpm - minHr) / hrSpan
-      const zoneIndex = point.zone ? chartZones.indexOf(point.zone) : -1
-      const y =
-        zoneIndex >= 0
-          ? plot.top +
-            (zoneIndex + 0.5 + (0.5 - normalizedHr) * 0.5) * bandHeight
-          : plot.top + plot.height - normalizedHr * plot.height
+      const y = yForBpm(point.hr_bpm)
       return `${x.toFixed(1)},${y.toFixed(1)}`
     })
     .join(' ')
@@ -48,27 +53,39 @@ export function HrZoneChart({ series }: HrZoneChartProps) {
         role="img"
         aria-label={`Heart rate from ${minHr} to ${maxHr} beats per minute over ${durationLabel(lastElapsed)}`}
       >
-        {chartZones.map((zone, index) => (
-          <rect
-            key={zone}
-            className={`hr-chart__band zone-${zone}`}
-            data-zone={zone}
-            x={plot.left}
-            y={plot.top + index * bandHeight}
-            width={plot.width}
-            height={bandHeight}
-          />
-        ))}
-        {chartZones.map((zone, index) => (
-          <text
-            key={`${zone}-label`}
-            className="hr-chart__zone-label"
-            x={plot.left + 8}
-            y={plot.top + index * bandHeight + 15}
-          >
-            {zone.toUpperCase()}
-          </text>
-        ))}
+        {chartZones.map((zone) => {
+          const boundary = boundaries[zone]
+          if (!boundary) return null
+          const [first, second] = boundary
+          const lo = Math.min(first, second)
+          const hi = Math.max(first, second)
+          return (
+            <rect
+              key={zone}
+              className={`hr-chart__band zone-${zone}`}
+              data-zone={zone}
+              x={plot.left}
+              y={yForBpm(hi)}
+              width={plot.width}
+              height={yForBpm(lo) - yForBpm(hi)}
+            />
+          )
+        })}
+        {chartZones.map((zone) => {
+          const boundary = boundaries[zone]
+          if (!boundary) return null
+          const hi = Math.max(...boundary)
+          return (
+            <text
+              key={`${zone}-label`}
+              className="hr-chart__zone-label"
+              x={plot.left + 8}
+              y={yForBpm(hi) + 15}
+            >
+              {zone.toUpperCase()}
+            </text>
+          )
+        })}
         <polyline className="hr-chart__line" points={points} />
         <text className="hr-chart__axis-label" x={plot.left} y={height - 18}>
           0:00
