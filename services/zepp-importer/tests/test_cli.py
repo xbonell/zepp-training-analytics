@@ -96,3 +96,72 @@ def test_normalize_cli_writes_duckdb(tmp_path, monkeypatch):
     assert result.exit_code == 0, result.output
     assert db.exists()
     assert "activities_upserted=" in result.output
+
+
+def test_normalize_passes_on_progress_kwarg(tmp_path, monkeypatch):
+    raw = tmp_path / "raw"
+    (raw / "activity-lists").mkdir(parents=True)
+    (raw / "activity-details").mkdir(parents=True)
+    fixtures = Path(__file__).parent / "fixtures"
+    (raw / "activity-lists" / "trackid-start.json").write_bytes(
+        (fixtures / "normalize_list.json").read_bytes()
+    )
+    (raw / "activity-details" / "1700000100.json").write_bytes(
+        (fixtures / "normalize_detail.json").read_bytes()
+    )
+    db = tmp_path / "out.duckdb"
+    monkeypatch.setenv("DATA_RAW_DIR", str(raw))
+    monkeypatch.setenv("DUCKDB_PATH", str(db))
+    monkeypatch.delenv("ZEPP_APP_TOKEN", raising=False)
+    monkeypatch.delenv("ZEPP_USER_ID", raising=False)
+
+    seen = {}
+
+    def capture_normalize(raw_dir, duckdb_path, on_progress=None):
+        seen["on_progress"] = on_progress
+        from fitness.normalize.load import NormalizeReport
+
+        return NormalizeReport(activities_upserted=1)
+
+    monkeypatch.setattr("fitness.cli.run_normalize", capture_normalize)
+    monkeypatch.setattr(
+        "fitness.progress.sys",
+        type(
+            "S",
+            (),
+            {"stderr": type("E", (), {"isatty": lambda self: False})()},
+        )(),
+    )
+
+    result = runner.invoke(app, ["normalize"])
+    assert result.exit_code == 0
+    assert seen["on_progress"] is None
+
+
+def test_normalize_wires_callback_when_tty(tmp_path, monkeypatch):
+    monkeypatch.setenv("DATA_RAW_DIR", str(tmp_path))
+    monkeypatch.setenv("DUCKDB_PATH", str(tmp_path / "out.duckdb"))
+    monkeypatch.delenv("ZEPP_APP_TOKEN", raising=False)
+    monkeypatch.delenv("ZEPP_USER_ID", raising=False)
+
+    seen = {}
+
+    def capture_normalize(raw_dir, duckdb_path, on_progress=None):
+        seen["on_progress"] = on_progress
+        from fitness.normalize.load import NormalizeReport
+
+        return NormalizeReport()
+
+    monkeypatch.setattr("fitness.cli.run_normalize", capture_normalize)
+    monkeypatch.setattr(
+        "fitness.progress.sys",
+        type(
+            "S",
+            (),
+            {"stderr": type("E", (), {"isatty": lambda self: True})()},
+        )(),
+    )
+
+    result = runner.invoke(app, ["normalize"])
+    assert result.exit_code == 0
+    assert callable(seen["on_progress"])

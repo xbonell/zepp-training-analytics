@@ -23,6 +23,8 @@ uv run fitness normalize
 `fitness normalize` requires local raw archives; it writes `data/zepp.duckdb`
 (activities, workout HR samples, and band continuous HR) by default.
 
+On an interactive terminal, `fitness sync` and `fitness normalize` show progress bars.
+
 `fitness status` works without credentials. `fitness sync` requires
 `ZEPP_APP_TOKEN` and `ZEPP_USER_ID`; it writes raw responses under `data/raw/`
 by default. Never commit `.env`, captures, or health data.

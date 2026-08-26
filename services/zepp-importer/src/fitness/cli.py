@@ -9,6 +9,7 @@ from fitness.archive import RawArchive
 from fitness.client import ZeppAuthError, ZeppClient
 from fitness.config import ConfigError, credentials_ready, load_settings, require_credentials
 from fitness.normalize.load import run_normalize
+from fitness.progress import PHASE_LABELS_NORMALIZE, PHASE_LABELS_SYNC, progress_callback
 from fitness.sync import SyncOptions, run_sync
 
 app = typer.Typer(add_completion=False, no_args_is_help=True)
@@ -51,12 +52,14 @@ def _run_sync_cmd(from_: Optional[str], activity: Optional[str]) -> None:
     assert settings.zepp_app_token and settings.zepp_user_id
     client = ZeppClient(settings.zepp_host, settings.zepp_app_token, settings.zepp_user_id)
     try:
-        report = run_sync(
-            settings,
-            client,
-            archive,
-            SyncOptions(from_date=from_date, activity_id=activity),
-        )
+        with progress_callback(PHASE_LABELS_SYNC) as on_progress:
+            report = run_sync(
+                settings,
+                client,
+                archive,
+                SyncOptions(from_date=from_date, activity_id=activity),
+                on_progress=on_progress,
+            )
     except ZeppAuthError as exc:
         typer.secho(str(exc), fg=typer.colors.RED, err=True)
         raise typer.Exit(code=1) from exc
@@ -88,7 +91,12 @@ def import_cmd(
 def normalize_cmd() -> None:
     """Load raw archives into local DuckDB (offline)."""
     settings = load_settings()
-    report = run_normalize(settings.data_raw_dir, settings.duckdb_path)
+    with progress_callback(PHASE_LABELS_NORMALIZE) as on_progress:
+        report = run_normalize(
+            settings.data_raw_dir,
+            settings.duckdb_path,
+            on_progress=on_progress,
+        )
     typer.echo(report)
     if report.errors:
         raise typer.Exit(code=1)
