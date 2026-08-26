@@ -193,19 +193,19 @@ def _sync_heart_rate(
 
     while day <= today:
         day_text = day.isoformat()
-        relative = f"heart-rate/{day_text}.json"
+        relative = f"band-data/{day_text}.json"
         if (archive.root / relative).exists():
             report.heart_rate_skipped += 1
             day += timedelta(days=1)
             continue
         try:
-            body = client.get_heart_rate(day_text, day_text)
+            body = client.get_band_data(day_text)
             result = archive.write_bytes(relative, body)
             _record(report, "heart_rate", result)
         except ZeppAuthError:
             raise
         except Exception as exc:
-            report.errors.append(_safe_error("heartRate", exc))
+            report.errors.append(_safe_error("band_data", exc))
         day += timedelta(days=1)
 
 

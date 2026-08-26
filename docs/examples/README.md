@@ -1,10 +1,10 @@
 # Sanitized payload examples
 
-No live Zepp payload examples are included in M1. T-Rex Pro fields remain
-**unverified** until first sync, and synthetic test fixtures are not evidence of
-the live API schema.
+Live sync archives exist locally under `data/raw/` (gitignored). This directory
+still has **no** committed examples. Synthetic test fixtures are not live
+evidence. Schema notes from the live pull live in `docs/zepp-data-model.md`.
 
-After a successful sync, examples may be added only after removing or replacing:
+Examples may be added only after removing or replacing:
 
 - `apptoken`, user IDs, device identifiers, and account/profile data;
 - GPS coordinates, location names, routes, and source URLs containing IDs;

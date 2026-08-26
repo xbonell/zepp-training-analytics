@@ -85,3 +85,9 @@ class ZeppClient:
             endpoints.heart_rate_path(self.user_id),
             endpoints.heart_rate_params(start, end),
         )
+
+    def get_band_data(self, day: str) -> bytes:
+        return self.get_raw(
+            endpoints.band_data_path(),
+            endpoints.band_data_params(self.user_id, day),
+        )

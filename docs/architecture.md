@@ -52,13 +52,14 @@ Current archive categories are:
 data/raw/
 ├── activity-lists/trackid-*.json
 ├── activity-details/<trackid>.json
-├── heart-rate/YYYY-MM-DD.json
+├── band-data/YYYY-MM-DD.json
+├── heart-rate/YYYY-MM-DD.json   # legacy hollow /heartRate archives (optional)
 └── _meta/last_sync.json
 ```
 
-All live endpoint behavior and T-Rex Pro fields are **unverified** until the
-first successful sync. M1 contains no DuckDB, API, web UI, zone calculations,
-or proprietary training-load interpretation.
+First live Global-EU sync succeeded (2026-08-26). Endpoint and field findings
+are recorded in `docs/zepp-data-model.md`. M1 contains no DuckDB, API, web UI,
+zone calculations, or proprietary training-load interpretation.
 
 ## Handoff
 

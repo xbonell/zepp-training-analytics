@@ -2,8 +2,9 @@
 
 Local-first fitness analytics for Amazfit T-Rex Pro / Zepp (Global/EU).
 
-Milestone 1 archives request-faithful Zepp Cloud responses locally. Endpoint and
-field behavior for the T-Rex Pro remains **unverified** until the first live sync.
+Milestone 1 archives request-faithful Zepp Cloud responses locally. A first
+Global-EU live sync against T-Rex Pro data is documented in
+`docs/zepp-data-model.md`.
 
 ## Setup
 

@@ -1,8 +1,12 @@
 # Provisional Zepp data model
 
-This document records reverse-engineered OSS evidence and the request shape
-implemented in M1. Every endpoint, field, encoding, unit, and T-Rex Pro behavior
-below is **unverified** until the first successful live sync.
+This document records the request shape implemented in M1 plus **live Global-EU
+evidence** from an Amazfit T-Rex Pro account (`bind_device` prefix
+`0:MILI:200:…`, host `api-mifit-us3.zepp.com`, first sync 2026-08-26).
+
+Rows labeled **live** were observed in archived responses under `data/raw/`.
+Rows labeled **candidate** come from OSS / Zepp OS docs and are not confirmed
+for this cloud API. Unknowns stay explicit.
 
 ## Request model
 
@@ -15,145 +19,183 @@ The client sends these headers on every GET:
 | `appname` | `com.xiaomi.hm.health` |
 
 `ZEPP_USER_ID` is inserted into user-scoped paths. The regional base host is
-configurable through `ZEPP_HOST`; the template default is
-`api-mifit-us3.zepp.com`. Captured `api-mifit*.zepp.com` traffic is the authority
-for an account's host. Host selection is **unverified** until first sync.
+configurable through `ZEPP_HOST`; the live account used
+`api-mifit-us3.zepp.com` successfully.
 
 ### Implemented endpoints
 
-| Client method | Request |
-|---|---|
-| history | `GET /v1/sport/run/history.json` |
-| next history page | same path with `?trackid=<data.next>` |
-| activity detail | `GET /v1/sport/run/detail.json?trackid=<id>&source=<source>` |
-| continuous HR | `GET /users/<ZEPP_USER_ID>/heartRate?start=YYYY-MM-DD&end=YYYY-MM-DD` |
+| Client method | Request | Live status |
+|---|---|---|
+| history | `GET /v1/sport/run/history.json` | **live** — `code=1`, `message=success` |
+| next history page | same path with `?trackid=<data.next>` | **live** — first page returned `next=-1` (no further pages for this pull) |
+| activity detail | `GET /v1/sport/run/detail.json?trackid=<id>&source=<source>` | **live** — indoor fitness details archived |
+| continuous HR (hollow) | `GET /users/<ZEPP_USER_ID>/heartRate?startTime=<ms>&endTime=<ms>&type=2` | **live** — HTTP 200 with `{"items":[]}`; not used by sync |
+| all-day band data / HR | `GET /v1/data/band_data.json?query_type=detail&from_date=&to_date=&userid=&device_type=0` | **live** — `code=1` with `data[].data_hr` present |
 
-The importer requests HR once per UTC calendar day with identical `start` and
-`end` dates. Those parameter names and date semantics are **unverified**.
+Sync requests one `band_data` detail day per UTC calendar date and archives the
+raw body under `band-data/YYYY-MM-DD.json`. On this account, `data_hr` is base64
+of **1440 uint8** values (one per minute); `254` (`0xFE`) is the empty sentinel
+and in-range BPM appears as raw bytes (e.g. 54–172 on a sampled day). OSS often
+describes Java `short` pairs — treat that as **candidate** for other devices /
+API versions; do not assume 2-byte decoding here. M1 does not decode the blob.
+`device_type=0` is verified on this account; other device_type strings may also
+work.
 
 Future-only OSS evidence from `m4ary/zepp-health-cli` identifies
-`GET /v2/watch/users/{id}/WatchSportStatistics/SPORT_LOAD`. M1 does not call it;
-availability, parameters, payload, units, and T-Rex Pro support are
-**unverified**.
+`GET /v2/watch/users/{id}/WatchSportStatistics/SPORT_LOAD`. M1 does not call it.
 
 ## History pagination and timestamps
 
-History responses are expected to contain `data.summary[]` and `data.next`.
-The importer starts without a cursor, archives the response, and then uses a
-positive integer `next` as the following request's `trackid`. It stops on a
-missing/non-positive `next` or an empty summary.
+History responses contain `data.summary[]` and `data.next` (**live**).
 
-OSS reports each summary `trackid` as the activity start time in Unix seconds.
-M1 uses that claim to apply `--from` filtering to details; it does not rewrite
-the source timestamp. Epoch unit, timezone behavior, uniqueness, ordering, and
-T-Rex Pro semantics remain **unverified**.
+- `trackid` is the activity start as a **Unix seconds** string (**live**).
+- `end_time` is Unix seconds as a string; `int(end_time) - int(trackid)` matches
+  `run_time` for sampled rows (**live**).
+- `run_time` is duration in **seconds** as a string (**live**).
+- M1 uses `trackid` for `--from` filtering and does not rewrite timestamps.
+- Display timezone for the product remains Europe/Madrid; archives keep source
+  epochs as-is.
 
 ## History summary fields
 
-The following field names and JSON types are reported by the rolandsz exporter
-model/example. Types describe the OSS payload, not a stable Zepp contract.
-Every row is **unverified** on this device and account.
+Observed JSON types on this account (489 activities in one list page):
 
-| Field | Reported JSON type |
-|---|---|
-| `trackid`, `source` | string |
-| `dis`, `calorie`, `end_time`, `run_time` | string |
-| `avg_pace`, `avg_frequency`, `avg_heart_rate` | string |
-| `type` | integer |
-| `location`, `city`, `forefoot_ratio`, `bind_device` | string |
-| `max_pace`, `min_pace`, `version` | integer |
-| `altitude_ascend`, `altitude_descend`, `total_step` | integer |
-| `avg_stride_length`, `max_frequency` | integer |
-| `max_altitude`, `min_altitude`, `lap_distance` | integer |
-| `sync_to` | string |
-| `distance_ascend`, `max_cadence`, `avg_cadence` | integer |
-| `landing_time`, `flight_ratio` | integer |
-| `climb_dis_descend`, `climb_dis_ascend_time`, `climb_dis_descend_time` | integer |
-| `child_list` | string |
-| `parent_trackid`, `max_heart_rate`, `min_heart_rate` | integer |
-| `swolf`, `total_strokes`, `total_trips` | integer |
-| `avg_stroke_speed`, `max_stroke_speed`, `avg_distance_per_stroke` | integer |
-| `swim_pool_length`, `te`, `swim_style`, `unit` | integer |
-| `add_info` | string |
-| `sport_mode`, `downhill_num`, `downhill_max_altitude_desend` | integer |
+| Field | Live JSON type | Notes |
+|---|---|---|
+| `trackid`, `source`, `dis`, `calorie`, `end_time`, `run_time` | string | present on all 489 |
+| `avg_pace`, `avg_frequency`, `avg_heart_rate` | string | present on all 489 |
+| `type` | integer | sport discriminator; see below |
+| `max_heart_rate`, `min_heart_rate` | integer | present on all 489 |
+| `te` | integer | present on 485/489 |
+| `exercise_load` | integer | present on 481/489; Zepp proprietary load |
+| `bind_device`, `app_name`, `location` | string | all 489; device id `0:MILI:200:…` |
+| `total_step` | integer | 353/489 non-sentinel; often `-1` when N/A |
+| `city` | string | 51/489 |
+| `syncedTimezone` | string | 17/489 |
+| `sport_title`, `model` | — | empty / absent on this pull |
 
-Payloads may add, omit, null, or change the type of any field. The local
-synthetic test fixture covers only `trackid`, `source`, `type`, `run_time`,
-`avg_heart_rate`, `max_heart_rate`, and `app_name`; it is not live evidence.
+Many other keys appear with sentinels (`-1`, `0`, `""`). Treat absence and
+sentinel as null for M2. The synthetic test fixture is not live evidence.
 
-The integer `type` and `sport_mode` mappings are unknown. No gym, run, cycling,
-or other sport labels are assigned in M1.
+### Sport `type` values (this account)
+
+| `type` | Count | Empirical traits (live) | Zepp OS `subType` candidate |
+|---|---|---|---|
+| 24 | 386 | `dis=0`, workout HR in details | Indoor Fitness |
+| 9 | 37 | large `dis`, `total_step=-1`, altitude | Elliptical Machine — **conflicts** with distance profile; treat as unlabeled |
+| 1 | 22 | `dis` ~5–10 km, step counts | Outdoor Running |
+| 16 | 22 | `dis=0`, zeroed swim/pace fields | not listed in Zepp OS appendix |
+| 22 | 12 | `dis` + steps + altitude | not listed between 21 and 23 |
+| 6 | 8 | `dis` + steps + altitude; swim metrics `-1` | Pool Swimming — **conflicts** with step/altitude profile |
+| 10 | 1 | `dis=0` | Mountaineering (candidate only) |
+| 40 | 1 | `dis` + steps | Indoor Walking |
+
+Keep raw `type` integers in storage. Do not invent analytical categories until
+labels are confirmed (user naming, app capture, or a trusted mapping).
 
 ## Detail series
 
-OSS reports detail heart-rate and GPS series as compact strings or arrays where
-the first value may be absolute and subsequent values delta-encoded. Field
-spellings can vary (`heart_rate`/`heartrate` in reports). The importer preserves
-the response bytes and performs no decoding.
+Detail envelope (**live**): `{ "code", "message", "data" }`.
 
-**Investigate on live data:** exact keys, delimiters, sampling interval, reset
-rules, signed deltas, coordinate scale/order, missing-value sentinels, alignment
-between streams, and whether non-GPS activities still contain HR.
+For the nine archived type-24 details:
+
+| Series key | Live observation |
+|---|---|
+| `heart_rate` | Non-empty on all nine; semicolon-separated `dt,dv` pairs |
+| `source` | e.g. `run.200.huami.com` |
+| `provider` | `gps` even when GPS series empty |
+| `longitude_latitude`, `altitude`, `pace`, … | empty strings on these indoor sessions |
+| `pause`, `lap` | occasionally present |
+
+### Workout `heart_rate` encoding (**live**)
+
+Format: `dt,dv;dt,dv;…` where
+
+1. `dt` is seconds since the previous sample (cumulative time ≈ `run_time`);
+2. the first `dv` is absolute BPM;
+3. later `dv` values are signed deltas from the previous BPM.
+
+Sample-mean BPM tracks summary `avg_heart_rate`; min/max track summary
+`min_heart_rate` / `max_heart_rate` (sentinel `0` can appear at the tail).
+
+M1 still archives bytes without decoding. M2 should decode this stream into
+`activity_samples` / workout-sourced `heart_rate_samples`.
+
+## Continuous heart rate / band data
+
+`/users/.../heartRate` is a known hollow endpoint on this account (and in OSS
+reports): correct query shape still yields empty `items`.
+
+All-day continuous HR is carried in `band_data` detail responses as `data_hr`.
+Synced days archive under `band-data/`; older empty `heart-rate/` files from the
+hollow endpoint may remain on disk as historical evidence and are not deleted.
+
+Implications:
+
+- M2 should decode `data_hr` from `band-data/` (plus workout detail `heart_rate`).
+- Deduplication between band and workout HR remains **unknown**.
+- Prefer workout detail HR for in-session analytics until band decoding lands.
 
 ## Units
 
-No unit is accepted as confirmed for the T-Rex Pro before live validation.
-
-| Candidate field group | Unit/status |
+| Field group | Status |
 |---|---|
-| `dis`, `lap_distance`, climb distances | unknown / **unverified** |
-| `run_time`, `end_time`, detail offsets | unknown / **unverified** |
-| `calorie` | unknown / **unverified** |
-| heart-rate values | unknown / **unverified** |
-| pace, speed, cadence, frequency | unknown / **unverified** |
-| altitude and ascent/descent | unknown / **unverified** |
-| GPS coordinates | representation and scale unknown / **unverified** |
-| `te`, `unit`, `sport_mode`, load | semantics unknown / **unverified** |
+| `run_time`, detail HR `dt` | seconds (**live**) |
+| `trackid`, `end_time` | Unix seconds (**live**) |
+| continuous HR bounds (`/heartRate`) | Unix **milliseconds** (**live**, hollow) |
+| `band_data` `from_date` / `to_date` | calendar `YYYY-MM-DD` (**live**) |
+| heart-rate values (workout) | BPM (**live**, matches summary) |
+| `data_hr` blob | base64; **live** 1440×uint8 BPM/min, sentinel `254`; OSS short pairs **candidate** elsewhere |
+| `dis`, climb distances | numeric strings; meters **candidate** / **unverified** |
+| `calorie` | numeric string; unit **unverified** |
+| `avg_pace`, cadence/frequency | **unverified** |
+| `te`, `exercise_load` | Zepp proprietary; keep separate from local load |
 
 ## Missing data and limitations
 
-- No live credentials or T-Rex Pro payloads have validated this schema.
-- Regional hosts and endpoint availability can differ by account.
-- Indoor activities may omit GPS; all activity/sample columns must be nullable.
-- History may omit fields or mix numeric strings, numbers, nulls, and empty
-  strings.
-- Continuous HR may overlap workout HR; a canonical deduplication rule is not
-  yet known.
-- M1 archives bytes but does not validate completeness or decode detail series.
-- Training load, VO2 max, sleep, steps, stress, SpO2, and daily summaries are
-  not fetched by M1.
+- `/heartRate` returns empty `items` with the web `appname` token used in M1;
+  sync uses `band_data` instead.
+- Indoor activities omit GPS series; all sample columns must be nullable.
+- History mixes strings, ints, and sentinels (`-1`, `0`, `""`).
+- Only nine activity details were pulled (`--from 2026-07-01`); most history
+  rows are summary-only until a wider detail sync.
+- Sleep, steps (daily), stress, SpO2, and daily band summaries are not fetched
+  by M1.
+- Zepp OS `subType` labels do not safely map to every live `type` on this
+  account.
 
 ## Provisional normalized schema for M2
 
-This is a proposal only; unknowns stay nullable and retain a raw-file pointer.
+Refine from live evidence; unknowns stay nullable and retain `raw_file`.
 
 ### `activities`
 
-`activity_id` (source `trackid`), raw `sport_type` integer, future analytical
-category (**unknown**), start/end timestamps (**unverified**), duration,
-distance, calories, HR summary, pace/cadence, elevation, optional Zepp-provided
-training load, `source`, and `raw_file`.
+`activity_id` (`trackid`), raw `sport_type` (`type`), start (`trackid` epoch),
+end (`end_time`), duration (`run_time`), distance (`dis`), calories, HR summary
+(`avg`/`max`/`min`), pace/cadence when present, elevation fields when present,
+`te` / `exercise_load` as Zepp-provided load, `source`, `bind_device`,
+`raw_file`.
 
 ### `activity_samples`
 
-`activity_id`, sample index/time (**unknown**), HR, latitude, longitude,
-altitude, speed/pace, cadence, cumulative distance, and `raw_file`. Every metric
-is nullable because streams and sport capabilities vary.
+`activity_id`, elapsed seconds, HR (decoded from detail `heart_rate`), optional
+lat/lon/altitude/pace/cadence when those series are non-empty, `raw_file`.
 
 ### `heart_rate_samples`
 
-Timestamp and HR value plus source (`continuous` or `workout`), activity ID when
-known, and `raw_file`. Overlap priority and deduplication are **unknown**.
+Timestamp and BPM plus source (`workout` and/or `band` once `data_hr` is
+decoded), activity ID for workout rows, `raw_file`.
 
 ### `daily_metrics`
 
-Date, timezone (**unknown**), and only daily measures supported by observed raw
-data. Do not add sleep, steps, resting HR, stress, SpO2, or load columns merely
-because other fitness platforms expose them.
+Defer until a daily raw source with non-empty payloads exists.
 
 ## Evidence
 
-- [Roland Szabó's exporter and payload discussion](https://rolandszabo.com/posts/export-mi-fit-and-zepp-workout-data/)
+- Live archives: `data/raw/activity-lists/`, `activity-details/`, `band-data/`
+  (and legacy empty `heart-rate/`; gitignored; local only)
+- [Zepp OS workout `subType` table](https://docs.zepp.com/docs/guides/workout-extension/quick-start/)
+  (candidate labels only)
+- [Roland Szabó exporter notes](https://rolandszabo.com/posts/export-mi-fit-and-zepp-workout-data/)
 - [`m4ary/zepp-health-cli` endpoint inventory](https://github.com/m4ary/zepp-health-cli)
-- The implementation in `services/zepp-importer/src/fitness/endpoints.py` and
-  `client.py` is authoritative for what M1 actually requests.
+- Implementation: `services/zepp-importer/src/fitness/endpoints.py`, `client.py`

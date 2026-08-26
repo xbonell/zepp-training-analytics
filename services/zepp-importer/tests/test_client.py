@@ -15,15 +15,24 @@ def test_endpoint_paths_and_params():
     assert endpoints.history_path() == "/v1/sport/run/history.json"
     assert endpoints.detail_path() == "/v1/sport/run/detail.json"
     assert endpoints.heart_rate_path("uid") == "/users/uid/heartRate"
+    assert endpoints.band_data_path() == "/v1/data/band_data.json"
     assert endpoints.history_params() == {}
     assert endpoints.history_params(123) == {"trackid": 123}
     assert endpoints.detail_params("track", "source") == {
         "trackid": "track",
         "source": "source",
     }
-    assert endpoints.heart_rate_params("2026-01-01", "2026-01-31") == {
-        "start": "2026-01-01",
-        "end": "2026-01-31",
+    assert endpoints.heart_rate_params("2026-01-01", "2026-01-01") == {
+        "startTime": "1767225600000",
+        "endTime": "1767311999999",
+        "type": "2",
+    }
+    assert endpoints.band_data_params("uid", "2026-08-18") == {
+        "query_type": "detail",
+        "from_date": "2026-08-18",
+        "to_date": "2026-08-18",
+        "userid": "uid",
+        "device_type": "0",
     }
 
 
@@ -47,7 +56,7 @@ def test_get_history_sends_auth_headers_and_cursor():
         assert client.get_history(123) == body
 
 
-def test_detail_and_heart_rate_requests():
+def test_detail_and_band_data_requests():
     seen: list[httpx.Request] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -61,14 +70,17 @@ def test_detail_and_heart_rate_requests():
         transport=httpx.MockTransport(handler),
     ) as client:
         assert client.get_detail("track", "source") == b"ok"
-        assert client.get_heart_rate("2026-01-01", "2026-01-31") == b"ok"
+        assert client.get_band_data("2026-08-18") == b"ok"
 
     assert seen[0].url.path == "/v1/sport/run/detail.json"
     assert dict(seen[0].url.params) == {"trackid": "track", "source": "source"}
-    assert seen[1].url.path == "/users/uid/heartRate"
+    assert seen[1].url.path == "/v1/data/band_data.json"
     assert dict(seen[1].url.params) == {
-        "start": "2026-01-01",
-        "end": "2026-01-31",
+        "query_type": "detail",
+        "from_date": "2026-08-18",
+        "to_date": "2026-08-18",
+        "userid": "uid",
+        "device_type": "0",
     }
 
 

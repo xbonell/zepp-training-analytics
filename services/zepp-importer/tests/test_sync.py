@@ -15,7 +15,7 @@ class FakeClient:
     def __init__(self) -> None:
         self.history_calls: list[int | None] = []
         self.detail_calls: list[tuple[str, str]] = []
-        self.hr_calls: list[tuple[str, str]] = []
+        self.band_data_calls: list[str] = []
 
     def get_history(self, from_track_id: int | None = None) -> bytes:
         self.history_calls.append(from_track_id)
@@ -41,9 +41,11 @@ class FakeClient:
         self.detail_calls.append((track_id, source))
         return json.dumps({"code": 1, "data": {"trackid": int(track_id)}}).encode()
 
-    def get_heart_rate(self, start: str, end: str) -> bytes:
-        self.hr_calls.append((start, end))
-        return json.dumps({"date": start, "bpm": [60, 61]}).encode()
+    def get_band_data(self, day: str) -> bytes:
+        self.band_data_calls.append(day)
+        return json.dumps(
+            {"code": 1, "message": "success", "data": [{"date_time": day, "data_hr": "QQ=="}]}
+        ).encode()
 
 
 def test_sync_archives_list_detail_and_hr(tmp_path: Path, monkeypatch):
@@ -65,9 +67,9 @@ def test_sync_archives_list_detail_and_hr(tmp_path: Path, monkeypatch):
 
     assert (tmp_path / "activity-lists" / "trackid-start.json").exists()
     assert (tmp_path / "activity-details" / "1700000000.json").exists()
-    assert (tmp_path / "heart-rate" / "2023-01-01.json").exists()
+    assert (tmp_path / "band-data" / "2023-01-01.json").exists()
     assert client.detail_calls == [("1700000000", "run.mifit.huami.com")]
-    assert client.hr_calls[0] == ("2023-01-01", "2023-01-01")
+    assert client.band_data_calls[0] == "2023-01-01"
     assert archive.read_meta() is not None
     assert report.details_written >= 1
 
@@ -231,12 +233,12 @@ def test_sync_stops_at_history_page_limit(tmp_path: Path):
     assert any("page limit reached" in error for error in report.errors)
 
 
-def test_sync_skips_existing_heart_rate_without_client_call(
+def test_sync_skips_existing_band_data_without_client_call(
     tmp_path: Path, monkeypatch
 ):
     monkeypatch.setattr("fitness.sync._utc_today", lambda: date(2023, 1, 1))
     archive = RawArchive(tmp_path)
-    archive.write_bytes("heart-rate/2023-01-01.json", b"existing")
+    archive.write_bytes("band-data/2023-01-01.json", b"existing")
     client = FakeClient()
 
     report = run_sync(
@@ -246,11 +248,11 @@ def test_sync_skips_existing_heart_rate_without_client_call(
         SyncOptions(from_date=date(2023, 1, 1), activity_id="missing"),
     )
 
-    assert client.hr_calls == []
+    assert client.band_data_calls == []
     assert report.heart_rate_skipped == 1
 
 
-def test_sync_caps_heart_rate_history_at_90_days(tmp_path: Path, monkeypatch):
+def test_sync_caps_band_data_history_at_90_days(tmp_path: Path, monkeypatch):
     monkeypatch.setattr("fitness.sync._utc_today", lambda: date(2023, 4, 10))
     client = FakeClient()
 
@@ -261,8 +263,8 @@ def test_sync_caps_heart_rate_history_at_90_days(tmp_path: Path, monkeypatch):
         SyncOptions(from_date=date(2020, 1, 1), activity_id="missing"),
     )
 
-    assert len(client.hr_calls) == 90
-    assert client.hr_calls[0] == ("2023-01-11", "2023-01-11")
+    assert len(client.band_data_calls) == 90
+    assert client.band_data_calls[0] == "2023-01-11"
 
 
 class OldHistoryClient(FakeClient):
