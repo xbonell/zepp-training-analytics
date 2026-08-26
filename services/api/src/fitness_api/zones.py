@@ -60,9 +60,10 @@ def bpm_boundaries(hrmax: float) -> dict[ZoneId, tuple[float, float]]:
 
 
 def suggest_hrmax(samples: list[int], percentile: float = 0.99) -> float | None:
-    if not samples:
+    positive = [s for s in samples if s > 0]
+    if not positive:
         return None
-    sorted_samples = sorted(samples)
+    sorted_samples = sorted(positive)
     idx = int(percentile * len(sorted_samples))
     if idx >= len(sorted_samples):
         idx = len(sorted_samples) - 1
