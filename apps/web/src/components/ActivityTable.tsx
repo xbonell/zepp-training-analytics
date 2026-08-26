@@ -101,8 +101,7 @@ export function ActivityTable({
               <td data-label="Splat">
                 {Number.isFinite(activity.splat_minutes_estimate)
                   ? `${Math.round(activity.splat_minutes_estimate)} min`
-                  : '—'}{' '}
-                <small>local estimate</small>
+                  : '—'}
               </td>
             </tr>
           ))}

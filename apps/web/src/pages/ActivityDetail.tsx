@@ -144,9 +144,8 @@ export function ActivityDetail({ activityId }: ActivityDetailProps) {
           </strong>
         </div>
         <div>
-          <span>Splat minutes</span>
+          <span>Splat</span>
           <strong>{Math.round(activity.splat_minutes_estimate)} min</strong>
-          <small>local estimate</small>
         </div>
       </section>
 

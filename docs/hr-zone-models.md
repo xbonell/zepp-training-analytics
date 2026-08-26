@@ -29,8 +29,7 @@ Age formulas (220 − age, Tanaka) are reference-only on the Zones page.
 **Time-in-zone:** each sample contributes duration until the next sample; the
 last sample contributes zero seconds.
 
-**Splat-like metric:** minutes in zones 4 + 5, labeled as a local estimate (not
-an official Orangetheory Splat).
+**Splat:** minutes in zones 4 + 5 (orange + red).
 
 Resting HR is stored in profile but not used for OTF % math in M3.
 

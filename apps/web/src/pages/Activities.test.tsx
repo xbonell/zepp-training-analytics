@@ -60,7 +60,6 @@ describe('Activities page', () => {
     expect(screen.getByText('18.4 km')).toBeVisible()
     expect(screen.getByText(/142 bpm/)).toBeVisible()
     expect(screen.getByText(/10 min/)).toBeVisible()
-    expect(screen.getByText('local estimate')).toBeVisible()
     expect(screen.getByText('Z2')).toBeVisible()
     expect(screen.getByRole('link', { name: /aug 23, 2026/i })).toHaveAttribute(
       'href',

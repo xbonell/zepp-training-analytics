@@ -85,7 +85,7 @@ export function Overview() {
           <strong>{formatTotalDuration(overview.duration_s)}</strong>
         </div>
         <div>
-          <span>Local splat estimate</span>
+          <span>Splat</span>
           <strong>{Math.round(overview.splat_minutes_estimate)} min</strong>
         </div>
         <div>

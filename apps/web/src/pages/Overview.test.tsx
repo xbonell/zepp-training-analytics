@@ -65,7 +65,7 @@ describe('Overview page', () => {
     ).toBeVisible()
     expect(screen.getByText('2')).toBeVisible()
     expect(screen.getByText('1h 30m')).toBeVisible()
-    expect(screen.getByText('Local splat estimate')).toBeVisible()
+    expect(screen.getAllByText('Splat').length).toBeGreaterThan(0)
     expect(screen.getByText('Peak HR')).toBeVisible()
     expect(screen.getByText('181 bpm')).toBeVisible()
     expect(screen.getByText('Highest workout sample')).toBeVisible()

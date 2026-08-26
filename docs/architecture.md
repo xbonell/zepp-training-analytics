@@ -94,7 +94,7 @@ data/profile.json ────────────┤ settings + HRmax overr
 
 Zone analytics use the OTF-style % MaxHR model (see `docs/hr-zone-models.md`).
 HRmax resolves from profile override or a suggested 99th percentile of workout
-HR samples. Time-in-zone and splat-like estimates are computed in the API from
+HR samples. Time-in-zone and Splat (Z4+Z5 minutes) are computed in the API from
 workout `activity_samples`; nothing is written back to DuckDB.
 
 API defaults: `data/zepp.duckdb`, `data/profile.json`, CORS for
