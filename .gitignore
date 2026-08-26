@@ -5,8 +5,8 @@
 data/raw/**
 !data/raw/.gitkeep
 data/parquet/
-data/*.duckdb
-data/**/*.duckdb
+data/*.duckdb*
+data/**/*.duckdb*
 
 *.har
 *.chlsj

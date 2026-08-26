@@ -1,5 +1,6 @@
 import json
 import shutil
+from datetime import datetime
 from pathlib import Path
 
 import duckdb
@@ -76,3 +77,124 @@ def test_normalize_replaces_samples_when_detail_changes(tmp_path: Path):
     ).fetchall()
     assert rows == [(10, 100)]
     conn.close()
+
+
+def test_normalize_started_at_reads_back_as_datetime(tmp_path: Path):
+    raw = _raw_tree(tmp_path)
+    db = tmp_path / "zepp.duckdb"
+
+    run_normalize(raw, db)
+
+    conn = duckdb.connect(str(db))
+    started_at = conn.execute(
+        "SELECT started_at FROM activities WHERE activity_id = '1700000100'"
+    ).fetchone()[0]
+    conn.close()
+
+    assert isinstance(started_at, datetime)
+
+
+def _list_payload(items: list[dict]) -> str:
+    return json.dumps({"code": 1, "message": "success", "data": {"next": -1, "summary": items}})
+
+
+def test_normalize_converges_when_list_conflict_siblings_agree_after_first_run(
+    tmp_path: Path,
+):
+    # Two list files describe the same activity_id with different calories,
+    # simulating M1 "conflict siblings" from overlapping history pulls.
+    raw = tmp_path / "raw"
+    (raw / "activity-lists").mkdir(parents=True)
+    item_a = {
+        "trackid": "1700000100",
+        "source": "run.200.huami.com",
+        "type": 24,
+        "end_time": "1700000400",
+        "run_time": "300",
+        "dis": "0.0",
+        "calorie": "50.0",
+        "avg_heart_rate": "120.0",
+    }
+    item_b = {**item_a, "calorie": "60.0"}
+    (raw / "activity-lists" / "a-list.json").write_text(_list_payload([item_a]))
+    (raw / "activity-lists" / "b-list.json").write_text(_list_payload([item_b]))
+    db = tmp_path / "zepp.duckdb"
+
+    first = run_normalize(raw, db)
+    second = run_normalize(raw, db)
+
+    # Deterministic pick (last file in sorted order wins) means both runs
+    # settle on the same value without oscillating between files.
+    conn = duckdb.connect(str(db))
+    calorie = conn.execute(
+        "SELECT calories FROM activities WHERE activity_id = '1700000100'"
+    ).fetchone()[0]
+    conn.close()
+
+    assert calorie == 60.0
+    assert first.activities_upserted == 1
+    assert second.activities_upserted == 0
+    assert second.activities_skipped == 1
+
+
+def test_load_lists_isolates_bad_item_errors(tmp_path: Path):
+    raw = tmp_path / "raw"
+    (raw / "activity-lists").mkdir(parents=True)
+    good_item = {
+        "trackid": "1700000100",
+        "source": "run.200.huami.com",
+        "type": 24,
+        "end_time": "1700000400",
+        "run_time": "300",
+        "dis": "0.0",
+        "calorie": "50.0",
+        "avg_heart_rate": "120.0",
+    }
+    bad_item = {**good_item, "trackid": "1700005000", "run_time": "not-a-number"}
+    (raw / "activity-lists" / "mixed.json").write_text(_list_payload([good_item, bad_item]))
+    db = tmp_path / "zepp.duckdb"
+
+    report = run_normalize(raw, db)
+
+    assert report.activities_upserted == 1
+    assert report.errors != []
+    conn = duckdb.connect(str(db))
+    row = conn.execute(
+        "SELECT calories FROM activities WHERE activity_id = '1700000100'"
+    ).fetchone()
+    missing = conn.execute(
+        "SELECT COUNT(*) FROM activities WHERE activity_id = '1700005000'"
+    ).fetchone()[0]
+    conn.close()
+
+    assert row is not None and row[0] == 50.0
+    assert missing == 0
+
+
+def test_list_reupsert_preserves_detail_and_samples(tmp_path: Path):
+    raw = _raw_tree(tmp_path)
+    db = tmp_path / "zepp.duckdb"
+    run_normalize(raw, db)
+
+    list_path = raw / "activity-lists" / "trackid-start.json"
+    payload = json.loads(list_path.read_text())
+    payload["data"]["summary"][0]["calorie"] = "999.0"
+    list_path.write_text(json.dumps(payload))
+
+    report = run_normalize(raw, db)
+
+    assert report.activities_upserted == 1
+    conn = duckdb.connect(str(db))
+    row = conn.execute(
+        "SELECT calories, detail_raw_file, detail_content_sha256 "
+        "FROM activities WHERE activity_id = '1700000100'"
+    ).fetchone()
+    samples = conn.execute(
+        "SELECT COUNT(*) FROM activity_samples WHERE activity_id = '1700000100'"
+    ).fetchone()[0]
+    conn.close()
+
+    assert row[0] == 999.0
+    assert row[1] is not None
+    assert row[2] is not None
+    assert samples == 3

@@ -33,6 +33,11 @@ def sha256_file(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def item_content_sha256(item: dict[str, Any]) -> str:
+    stable = json.dumps(item, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(stable.encode("utf-8")).hexdigest()
+
+
 def null_sentinel(value: Any) -> Any:
     if value in (None, "", -1, "-1"):
         return None
@@ -48,6 +53,7 @@ def run_normalize(raw_dir: Path, duckdb_path: Path) -> NormalizeReport:
     duckdb_path.parent.mkdir(parents=True, exist_ok=True)
     conn = duckdb.connect(str(duckdb_path))
     try:
+        conn.execute("SET TimeZone='UTC'")
         ensure_schema(conn)
         _load_lists(conn, raw_dir, report)
         _load_details(conn, raw_dir, report)
@@ -67,82 +73,101 @@ def _load_lists(
     if not lists_dir.exists():
         return
 
+    # Multiple list files can describe the same activity_id (e.g. M1's
+    # "conflict siblings" from overlapping history pulls). Hashing the whole
+    # file for list_content_sha256 made the skip check depend on file
+    # ordering and unrelated items in the same file, so re-running normalize
+    # over unchanged raw data never converged to a stable skip. Instead,
+    # gather one summary item per activity_id across all list files first
+    # (last file wins, in sorted filename order -> deterministic pick), then
+    # hash and upsert per item below. The digest then reflects only the
+    # winning item's own content, so unchanged reruns settle into a skip.
+    items_by_id: dict[str, tuple[dict[str, Any], Path]] = {}
     for path in sorted(lists_dir.glob("*.json")):
         try:
-            digest = sha256_file(path)
             payload = json.loads(path.read_text())
-            summary = (payload.get("data") or {}).get("summary") or []
-            for item in summary:
-                if not isinstance(item, dict):
-                    continue
-                activity_id = str(item.get("trackid", ""))
-                if not activity_id:
-                    report.errors.append(f"list missing trackid in {_rel(raw_dir, path)}")
-                    continue
-                existing = conn.execute(
-                    "SELECT list_content_sha256 FROM activities WHERE activity_id = ?",
-                    [activity_id],
-                ).fetchone()
-                if existing and existing[0] == digest:
-                    report.activities_skipped += 1
-                    continue
-                conn.execute(
-                    """
-                    INSERT INTO activities AS a (
-                      activity_id, sport_type, source, bind_device,
-                      started_at, ended_at, duration_s, distance_m, calories,
-                      avg_hr, max_hr, min_hr, te, exercise_load,
-                      list_raw_file, list_content_sha256
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ON CONFLICT (activity_id) DO UPDATE SET
-                      sport_type = excluded.sport_type,
-                      source = excluded.source,
-                      bind_device = excluded.bind_device,
-                      started_at = excluded.started_at,
-                      ended_at = excluded.ended_at,
-                      duration_s = excluded.duration_s,
-                      distance_m = excluded.distance_m,
-                      calories = excluded.calories,
-                      avg_hr = excluded.avg_hr,
-                      max_hr = excluded.max_hr,
-                      min_hr = excluded.min_hr,
-                      te = excluded.te,
-                      exercise_load = excluded.exercise_load,
-                      list_raw_file = excluded.list_raw_file,
-                      list_content_sha256 = excluded.list_content_sha256
-                    """,
-                    [
-                        activity_id,
-                        item.get("type"),
-                        item.get("source"),
-                        null_sentinel(item.get("bind_device")),
-                        unix_to_utc(item["trackid"]),
-                        unix_to_utc(item["end_time"])
-                        if item.get("end_time") not in (None, "")
-                        else None,
-                        int(item["run_time"])
-                        if null_sentinel(item.get("run_time")) is not None
-                        else None,
-                        float(item["dis"])
-                        if null_sentinel(item.get("dis")) is not None
-                        else None,
-                        float(item["calorie"])
-                        if null_sentinel(item.get("calorie")) is not None
-                        else None,
-                        float(item["avg_heart_rate"])
-                        if null_sentinel(item.get("avg_heart_rate")) is not None
-                        else None,
-                        null_sentinel(item.get("max_heart_rate")),
-                        null_sentinel(item.get("min_heart_rate")),
-                        null_sentinel(item.get("te")),
-                        null_sentinel(item.get("exercise_load")),
-                        _rel(raw_dir, path),
-                        digest,
-                    ],
-                )
-                report.activities_upserted += 1
         except Exception as exc:
             report.errors.append(f"{type(exc).__name__} on list {_rel(raw_dir, path)}")
+            continue
+        summary = (payload.get("data") or {}).get("summary") or []
+        for item in summary:
+            if not isinstance(item, dict):
+                continue
+            activity_id = str(item.get("trackid", ""))
+            if not activity_id:
+                report.errors.append(f"list missing trackid in {_rel(raw_dir, path)}")
+                continue
+            items_by_id[activity_id] = (item, path)
+
+    for activity_id, (item, path) in sorted(items_by_id.items()):
+        try:
+            digest = item_content_sha256(item)
+            existing = conn.execute(
+                "SELECT list_content_sha256 FROM activities WHERE activity_id = ?",
+                [activity_id],
+            ).fetchone()
+            if existing and existing[0] == digest:
+                report.activities_skipped += 1
+                continue
+            conn.execute(
+                """
+                INSERT INTO activities AS a (
+                  activity_id, sport_type, source, bind_device,
+                  started_at, ended_at, duration_s, distance_m, calories,
+                  avg_hr, max_hr, min_hr, te, exercise_load,
+                  list_raw_file, list_content_sha256
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT (activity_id) DO UPDATE SET
+                  sport_type = excluded.sport_type,
+                  source = excluded.source,
+                  bind_device = excluded.bind_device,
+                  started_at = excluded.started_at,
+                  ended_at = excluded.ended_at,
+                  duration_s = excluded.duration_s,
+                  distance_m = excluded.distance_m,
+                  calories = excluded.calories,
+                  avg_hr = excluded.avg_hr,
+                  max_hr = excluded.max_hr,
+                  min_hr = excluded.min_hr,
+                  te = excluded.te,
+                  exercise_load = excluded.exercise_load,
+                  list_raw_file = excluded.list_raw_file,
+                  list_content_sha256 = excluded.list_content_sha256
+                """,
+                [
+                    activity_id,
+                    item.get("type"),
+                    item.get("source"),
+                    null_sentinel(item.get("bind_device")),
+                    unix_to_utc(item["trackid"]),
+                    unix_to_utc(item["end_time"])
+                    if item.get("end_time") not in (None, "")
+                    else None,
+                    int(item["run_time"])
+                    if null_sentinel(item.get("run_time")) is not None
+                    else None,
+                    float(item["dis"])
+                    if null_sentinel(item.get("dis")) is not None
+                    else None,
+                    float(item["calorie"])
+                    if null_sentinel(item.get("calorie")) is not None
+                    else None,
+                    float(item["avg_heart_rate"])
+                    if null_sentinel(item.get("avg_heart_rate")) is not None
+                    else None,
+                    null_sentinel(item.get("max_heart_rate")),
+                    null_sentinel(item.get("min_heart_rate")),
+                    null_sentinel(item.get("te")),
+                    null_sentinel(item.get("exercise_load")),
+                    _rel(raw_dir, path),
+                    digest,
+                ],
+            )
+            report.activities_upserted += 1
+        except Exception as exc:
+            report.errors.append(
+                f"{type(exc).__name__} on activity {activity_id} in {_rel(raw_dir, path)}"
+            )
 
 
 def _load_details(

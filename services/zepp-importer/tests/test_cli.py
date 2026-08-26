@@ -88,6 +88,8 @@ def test_normalize_cli_writes_duckdb(tmp_path, monkeypatch):
     (raw / "activity-lists" / "trackid-start.json").write_bytes(list_src.read_bytes())
     (raw / "activity-details" / "1700000100.json").write_bytes(detail_src.read_bytes())
     db = tmp_path / "out.duckdb"
+    monkeypatch.delenv("ZEPP_APP_TOKEN", raising=False)
+    monkeypatch.delenv("ZEPP_USER_ID", raising=False)
     monkeypatch.setenv("DATA_RAW_DIR", str(raw))
     monkeypatch.setenv("DUCKDB_PATH", str(db))
     result = runner.invoke(app, ["normalize"])

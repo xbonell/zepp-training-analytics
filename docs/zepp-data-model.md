@@ -133,7 +133,8 @@ hollow endpoint may remain on disk as historical evidence and are not deleted.
 
 Implications:
 
-- M2 should decode `data_hr` from `band-data/` (plus workout detail `heart_rate`).
+- Band-data `data_hr` decoding remains deferred (workout detail `heart_rate` is
+  decoded in M2).
 - Deduplication between band and workout HR remains **unknown**.
 - Prefer workout detail HR for in-session analytics until band decoding lands.
 

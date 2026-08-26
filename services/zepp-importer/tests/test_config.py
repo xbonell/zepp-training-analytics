@@ -37,6 +37,9 @@ def test_require_credentials_raises(monkeypatch, tmp_path):
 def test_duckdb_path_default(tmp_path, monkeypatch):
     monkeypatch.delenv("DUCKDB_PATH", raising=False)
     monkeypatch.delenv("DATA_RAW_DIR", raising=False)
+    # Isolate from the repo's own .env so a developer's local overrides
+    # (e.g. a custom DUCKDB_PATH) can't leak into this assertion.
+    monkeypatch.setattr("fitness.config.load_dotenv", lambda *args, **kwargs: None)
     settings = load_settings()
     assert settings.duckdb_path.name == "zepp.duckdb"
     assert settings.duckdb_path.parent.name == "data"
