@@ -10,6 +10,7 @@ import httpx
 from fitness.archive import ArchiveResult, RawArchive
 from fitness.client import ZeppAuthError, ZeppClient
 from fitness.config import Settings
+from fitness.progress import ProgressCallback, ProgressEvent, emit
 
 MAX_HISTORY_PAGES = 500
 
@@ -90,11 +91,13 @@ def _history_activities(
     archive: RawArchive,
     report: SyncReport,
     from_date: date | None,
+    on_progress: ProgressCallback | None,
 ) -> list[dict[str, Any]]:
     activities: list[dict[str, Any]] = []
     cursor: int | None = None
     seen_cursors: set[int] = set()
     earliest = _history_start_timestamp(from_date)
+    page = 0
 
     for _ in range(MAX_HISTORY_PAGES):
         if cursor is not None:
@@ -110,6 +113,8 @@ def _history_activities(
         name = "start" if cursor is None else str(cursor)
         result = archive.write_bytes(f"activity-lists/trackid-{name}.json", body)
         _record(report, "lists", result)
+        page += 1
+        emit(on_progress, ProgressEvent("history", page, None, name))
 
         try:
             payload = json.loads(body)
@@ -148,8 +153,10 @@ def _sync_details(
     options: SyncOptions,
     report: SyncReport,
     activities: list[dict[str, Any]],
+    on_progress: ProgressCallback | None,
 ) -> None:
     earliest = _history_start_timestamp(options.from_date)
+    targets: list[tuple[str, str]] = []
 
     for activity in activities:
         track_id = str(activity.get("trackid", ""))
@@ -165,11 +172,17 @@ def _sync_details(
         except ValueError:
             report.errors.append(f"invalid activity trackid: {track_id}")
             continue
+        targets.append((track_id, source))
 
+    for index, (track_id, source) in enumerate(targets, start=1):
         relative = f"activity-details/{track_id}.json"
         forced = options.activity_id == track_id
         if (archive.root / relative).exists() and not forced:
             report.details_skipped += 1
+            emit(
+                on_progress,
+                ProgressEvent("details", index, len(targets), track_id),
+            )
             continue
 
         try:
@@ -179,6 +192,10 @@ def _sync_details(
             raise
         except Exception as exc:
             report.errors.append(_safe_error("activity detail", exc))
+        emit(
+            on_progress,
+            ProgressEvent("details", index, len(targets), track_id),
+        )
 
 
 def _sync_heart_rate(
@@ -186,17 +203,25 @@ def _sync_heart_rate(
     archive: RawArchive,
     options: SyncOptions,
     report: SyncReport,
+    on_progress: ProgressCallback | None,
 ) -> None:
     today = _utc_today()
     earliest = today - timedelta(days=89)
-    day = max(options.from_date or (today - timedelta(days=6)), earliest)
+    start_day = max(options.from_date or (today - timedelta(days=6)), earliest)
+    days = [
+        start_day + timedelta(days=offset)
+        for offset in range((today - start_day).days + 1)
+    ]
 
-    while day <= today:
+    for index, day in enumerate(days, start=1):
         day_text = day.isoformat()
         relative = f"band-data/{day_text}.json"
         if (archive.root / relative).exists():
             report.heart_rate_skipped += 1
-            day += timedelta(days=1)
+            emit(
+                on_progress,
+                ProgressEvent("band_hr", index, len(days), day_text),
+            )
             continue
         try:
             body = client.get_band_data(day_text)
@@ -206,7 +231,10 @@ def _sync_heart_rate(
             raise
         except Exception as exc:
             report.errors.append(_safe_error("band_data", exc))
-        day += timedelta(days=1)
+        emit(
+            on_progress,
+            ProgressEvent("band_hr", index, len(days), day_text),
+        )
 
 
 def _report_counts(report: SyncReport) -> dict[str, int]:
@@ -231,14 +259,17 @@ def run_sync(
     client: ZeppClient,
     archive: RawArchive,
     options: SyncOptions,
+    on_progress: ProgressCallback | None = None,
 ) -> SyncReport:
     del settings
     started_at = datetime.now(timezone.utc)
     report = SyncReport()
 
-    activities = _history_activities(client, archive, report, options.from_date)
-    _sync_details(client, archive, options, report, activities)
-    _sync_heart_rate(client, archive, options, report)
+    activities = _history_activities(
+        client, archive, report, options.from_date, on_progress
+    )
+    _sync_details(client, archive, options, report, activities, on_progress)
+    _sync_heart_rate(client, archive, options, report, on_progress)
 
     archive.write_meta(
         {
