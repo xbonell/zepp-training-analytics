@@ -182,6 +182,42 @@ def test_activities_filters_by_inclusive_dates_and_sport(tmp_path):
     assert payload[0]["started_at"] == "2026-08-25T20:00:00+02:00"
 
 
+def test_activity_summaries_preserve_zone_totals_and_splats(tmp_path):
+    client = make_client(tmp_path)
+
+    payload = client.get("/api/activities", params={"to": "2026-08-24"}).json()
+
+    assert payload[0]["activity_id"] == "run-1"
+    assert payload[0]["time_in_zone"] == {
+        "below": 0.0,
+        "z1": 0.0,
+        "z2": 60.0,
+        "z3": 0.0,
+        "z4": 60.0,
+        "z5": 0.0,
+    }
+    assert payload[0]["splat_minutes_estimate"] == 1.0
+
+
+def test_activity_summaries_default_to_empty_zones_without_hrmax(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setattr(main_module, "_resolved_hrmax", lambda settings: (None, "none"))
+    client = make_client(tmp_path)
+
+    payload = client.get("/api/activities", params={"to": "2026-08-24"}).json()
+
+    assert payload[0]["time_in_zone"] == {
+        "below": 0.0,
+        "z1": 0.0,
+        "z2": 0.0,
+        "z3": 0.0,
+        "z4": 0.0,
+        "z5": 0.0,
+    }
+    assert payload[0]["splat_minutes_estimate"] == 0.0
+
+
 def test_activity_detail_has_zoned_hr_series_and_estimated_splats(tmp_path):
     client = make_client(tmp_path)
 
@@ -226,6 +262,32 @@ def test_overview_aggregates_all_activity_samples_and_recent(tmp_path):
         "ride-1",
         "run-1",
     ]
+
+
+def test_overview_filters_totals_zones_splats_and_recent_by_period(tmp_path):
+    client = make_client(tmp_path)
+
+    response = client.get(
+        "/api/overview",
+        params={"from": "2026-08-24", "to": "2026-08-24"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["activity_count"] == 1
+    assert payload["duration_s"] == 120
+    assert payload["zone_mix"] == {
+        "below": 0.0,
+        "z1": 0.0,
+        "z2": 60.0,
+        "z3": 0.0,
+        "z4": 60.0,
+        "z5": 0.0,
+    }
+    assert payload["splat_minutes_estimate"] == 1.0
+    assert [activity["activity_id"] for activity in payload["recent"]] == ["run-1"]
+    assert payload["recent"][0]["time_in_zone"]["z4"] == 60.0
+    assert payload["recent"][0]["splat_minutes_estimate"] == 1.0
 
 
 def test_profile_endpoints_round_trip(tmp_path):

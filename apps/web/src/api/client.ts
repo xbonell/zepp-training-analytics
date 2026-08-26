@@ -29,6 +29,8 @@ export interface ActivityFilters {
   sportType?: number
 }
 
+export type OverviewFilters = Pick<ActivityFilters, 'from' | 'to'>
+
 async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
   const response = await fetch(path, { signal })
   if (!response.ok) {
@@ -37,17 +39,26 @@ async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
   return response.json() as Promise<T>
 }
 
-export function fetchOverview(signal?: AbortSignal): Promise<OverviewResponse> {
-  return getJson('/api/overview', signal)
+function dateParams(filters: OverviewFilters) {
+  const params = new URLSearchParams()
+  if (filters.from) params.set('from', filters.from)
+  if (filters.to) params.set('to', filters.to)
+  return params
+}
+
+export function fetchOverview(
+  filters: OverviewFilters = {},
+  signal?: AbortSignal,
+): Promise<OverviewResponse> {
+  const query = dateParams(filters).toString()
+  return getJson(`/api/overview${query ? `?${query}` : ''}`, signal)
 }
 
 export function fetchActivities(
   filters: ActivityFilters = {},
   signal?: AbortSignal,
 ): Promise<ActivitySummary[]> {
-  const params = new URLSearchParams()
-  if (filters.from) params.set('from', filters.from)
-  if (filters.to) params.set('to', filters.to)
+  const params = dateParams(filters)
   if (filters.sportType !== undefined) {
     params.set('sport_type', String(filters.sportType))
   }

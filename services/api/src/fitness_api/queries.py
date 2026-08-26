@@ -98,15 +98,32 @@ def get_activity_samples(path: Path, activity_id: str) -> list[tuple[int, int]]:
     return [(int(elapsed_s), int(hr_bpm)) for elapsed_s, hr_bpm in rows]
 
 
-def all_activity_samples(path: Path) -> dict[str, list[tuple[int, int]]]:
+def all_activity_samples(
+    path: Path,
+    from_date: date | None = None,
+    to_date: date | None = None,
+) -> dict[str, list[tuple[int, int]]]:
+    conditions = ["samples.hr_bpm > 0"]
+    parameters: list[Any] = []
+    if from_date is not None:
+        conditions.append("activities.started_at >= CAST(? AS DATE)")
+        parameters.append(from_date)
+    if to_date is not None:
+        conditions.append(
+            "activities.started_at < CAST(? AS DATE) + INTERVAL 1 DAY"
+        )
+        parameters.append(to_date)
+
     with _connect(path) as conn:
         rows = conn.execute(
-            """
-            SELECT activity_id, elapsed_s, hr_bpm
-            FROM activity_samples
-            WHERE hr_bpm > 0
-            ORDER BY activity_id, elapsed_s
-            """
+            f"""
+            SELECT samples.activity_id, samples.elapsed_s, samples.hr_bpm
+            FROM activity_samples AS samples
+            JOIN activities USING (activity_id)
+            WHERE {" AND ".join(conditions)}
+            ORDER BY samples.activity_id, samples.elapsed_s
+            """,
+            parameters,
         ).fetchall()
     result: dict[str, list[tuple[int, int]]] = {}
     for activity_id, elapsed_s, hr_bpm in rows:
@@ -114,12 +131,28 @@ def all_activity_samples(path: Path) -> dict[str, list[tuple[int, int]]]:
     return result
 
 
-def overview_totals(path: Path) -> tuple[int, int]:
+def overview_totals(
+    path: Path,
+    from_date: date | None = None,
+    to_date: date | None = None,
+) -> tuple[int, int]:
+    conditions: list[str] = []
+    parameters: list[Any] = []
+    if from_date is not None:
+        conditions.append("started_at >= CAST(? AS DATE)")
+        parameters.append(from_date)
+    if to_date is not None:
+        conditions.append("started_at < CAST(? AS DATE) + INTERVAL 1 DAY")
+        parameters.append(to_date)
+    where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+
     with _connect(path) as conn:
         count, duration = conn.execute(
-            """
+            f"""
             SELECT count(*), coalesce(sum(duration_s), 0)
             FROM activities
-            """
+            {where}
+            """,
+            parameters,
         ).fetchone()
     return int(count), int(duration)

@@ -1,9 +1,15 @@
 import { useEffect, useState } from 'react'
 import {
   fetchOverview,
+  type OverviewFilters,
   type OverviewResponse,
 } from '../api/client'
 import { ActivityTable } from '../components/ActivityTable'
+import {
+  type DateRange,
+  type PeriodPreset,
+} from '../components/period'
+import { PeriodPresets } from '../components/PeriodPresets'
 import { ZoneMixBar } from '../components/ZoneMixBar'
 
 function formatTotalDuration(seconds: number) {
@@ -15,10 +21,12 @@ function formatTotalDuration(seconds: number) {
 export function Overview() {
   const [overview, setOverview] = useState<OverviewResponse>()
   const [error, setError] = useState('')
+  const [filters, setFilters] = useState<OverviewFilters>({})
+  const [period, setPeriod] = useState<PeriodPreset>('all')
 
   useEffect(() => {
     const controller = new AbortController()
-    fetchOverview(controller.signal)
+    fetchOverview(filters, controller.signal)
       .then(setOverview)
       .catch((reason: unknown) => {
         if (!controller.signal.aborted) {
@@ -26,7 +34,13 @@ export function Overview() {
         }
       })
     return () => controller.abort()
-  }, [])
+  }, [filters])
+
+  function selectPeriod(nextPeriod: PeriodPreset, range: DateRange) {
+    setError('')
+    setPeriod(nextPeriod)
+    setFilters(range)
+  }
 
   if (error) {
     return <PageMessage title="Overview unavailable" detail={error} />
@@ -40,7 +54,7 @@ export function Overview() {
     <>
       <div className="page-heading">
         <div>
-          <p className="eyebrow">Dashboard / all time</p>
+          <p className="eyebrow">Dashboard / {periodLabel(period)}</p>
           <h1>Training overview</h1>
         </div>
         <p className="status">
@@ -48,6 +62,8 @@ export function Overview() {
           Local activity data
         </p>
       </div>
+
+      <PeriodPresets selected={period} onSelect={selectPeriod} />
 
       <section className="metrics" aria-label="Training totals">
         <div>
@@ -100,6 +116,16 @@ export function Overview() {
       )}
     </>
   )
+}
+
+function periodLabel(period: PeriodPreset) {
+  return {
+    '7d': '7 days',
+    '30d': '30 days',
+    '90d': '90 days',
+    ytd: 'year to date',
+    all: 'all time',
+  }[period]
 }
 
 function PageMessage({ title, detail }: { title: string; detail: string }) {

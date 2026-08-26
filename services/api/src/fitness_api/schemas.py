@@ -6,6 +6,17 @@ from pydantic import BaseModel, Field
 from fitness_api.zones import ZoneId
 
 
+def _empty_zone_totals() -> dict[ZoneId, float]:
+    return {
+        "below": 0.0,
+        "z1": 0.0,
+        "z2": 0.0,
+        "z3": 0.0,
+        "z4": 0.0,
+        "z5": 0.0,
+    }
+
+
 class ActivitySummary(BaseModel):
     activity_id: str
     sport_type: int | None
@@ -20,6 +31,11 @@ class ActivitySummary(BaseModel):
     min_hr: int | None
     te: int | None
     exercise_load: int | None
+    time_in_zone: dict[ZoneId, float] = Field(default_factory=_empty_zone_totals)
+    splat_minutes_estimate: float = Field(
+        default=0,
+        description="Local estimate based on time in heart-rate zones 4 and 5.",
+    )
 
 
 class HeartRatePoint(BaseModel):
@@ -30,10 +46,6 @@ class HeartRatePoint(BaseModel):
 
 class ActivityDetail(ActivitySummary):
     hr_series: list[HeartRatePoint]
-    time_in_zone: dict[ZoneId, float]
-    splat_minutes_estimate: float = Field(
-        description="Local estimate based on time in heart-rate zones 4 and 5."
-    )
 
 
 class AgeFormulaReferences(BaseModel):

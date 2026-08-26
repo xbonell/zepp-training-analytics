@@ -49,6 +49,22 @@ def _empty_zone_totals() -> dict:
     return time_in_zones([], 1.0)
 
 
+def _enrich_activity_summaries(
+    activities: list[dict],
+    samples: dict[str, list[tuple[int, int]]],
+    hrmax: float | None,
+) -> list[dict]:
+    for activity in activities:
+        totals = (
+            time_in_zones(samples.get(activity["activity_id"], []), hrmax)
+            if hrmax is not None
+            else _empty_zone_totals()
+        )
+        activity["time_in_zone"] = totals
+        activity["splat_minutes_estimate"] = splat_minutes(totals)
+    return activities
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     app_settings = settings or Settings()
     app = FastAPI(title="Zepp Training Analytics API")
@@ -108,12 +124,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         to_date: date | None = Query(default=None, alias="to"),
         sport_type: int | None = None,
     ) -> list[dict]:
-        return list_activities(
+        activity_rows = list_activities(
             app_settings.duckdb_path,
             from_date=from_date,
             to_date=to_date,
             sport_type=sport_type,
         )
+        hrmax, _ = _resolved_hrmax(app_settings)
+        samples = all_activity_samples(
+            app_settings.duckdb_path,
+            from_date=from_date,
+            to_date=to_date,
+        )
+        return _enrich_activity_summaries(activity_rows, samples, hrmax)
 
     @app.get("/api/activities/{activity_id}", response_model=ActivityDetail)
     def activity_detail(activity_id: str) -> dict:
@@ -138,21 +161,39 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return activity
 
     @app.get("/api/overview", response_model=OverviewResponse)
-    def overview() -> OverviewResponse:
-        count, duration = overview_totals(app_settings.duckdb_path)
+    def overview(
+        from_date: date | None = Query(default=None, alias="from"),
+        to_date: date | None = Query(default=None, alias="to"),
+    ) -> OverviewResponse:
+        count, duration = overview_totals(
+            app_settings.duckdb_path,
+            from_date=from_date,
+            to_date=to_date,
+        )
         hrmax, _ = _resolved_hrmax(app_settings)
         zone_mix = _empty_zone_totals()
+        samples = all_activity_samples(
+            app_settings.duckdb_path,
+            from_date=from_date,
+            to_date=to_date,
+        )
         if hrmax is not None:
-            for series in all_activity_samples(app_settings.duckdb_path).values():
+            for series in samples.values():
                 totals = time_in_zones(series, hrmax)
                 for zone, seconds in totals.items():
                     zone_mix[zone] += seconds
+        recent = list_activities(
+            app_settings.duckdb_path,
+            from_date=from_date,
+            to_date=to_date,
+            limit=10,
+        )
         return OverviewResponse(
             activity_count=count,
             duration_s=duration,
             zone_mix=zone_mix,
             splat_minutes_estimate=splat_minutes(zone_mix),
-            recent=list_activities(app_settings.duckdb_path, limit=10),
+            recent=_enrich_activity_summaries(recent, samples, hrmax),
         )
 
     return app

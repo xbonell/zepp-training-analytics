@@ -1,5 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import type { ActivityFilters } from '../api/client'
+import { type DateRange, type PeriodPreset } from './period'
+import { PeriodPresets } from './PeriodPresets'
 
 interface PeriodSelectorProps {
   onApply: (filters: ActivityFilters) => void
@@ -9,6 +11,17 @@ export function PeriodSelector({ onApply }: PeriodSelectorProps) {
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [sportType, setSportType] = useState('')
+  const [period, setPeriod] = useState<PeriodPreset | undefined>('all')
+
+  function selectPeriod(nextPeriod: PeriodPreset, range: DateRange) {
+    setPeriod(nextPeriod)
+    setFrom(range.from ?? '')
+    setTo(range.to ?? '')
+    onApply({
+      ...range,
+      ...(sportType ? { sportType: Number(sportType) } : {}),
+    })
+  }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -21,13 +34,17 @@ export function PeriodSelector({ onApply }: PeriodSelectorProps) {
 
   return (
     <form className="period-selector" onSubmit={handleSubmit}>
+      <PeriodPresets selected={period} onSelect={selectPeriod} />
       <label>
         <span>From</span>
         <input
           type="date"
           value={from}
           max={to || undefined}
-          onChange={(event) => setFrom(event.target.value)}
+          onChange={(event) => {
+            setPeriod(undefined)
+            setFrom(event.target.value)
+          }}
         />
       </label>
       <label>
@@ -36,7 +53,10 @@ export function PeriodSelector({ onApply }: PeriodSelectorProps) {
           type="date"
           value={to}
           min={from || undefined}
-          onChange={(event) => setTo(event.target.value)}
+          onChange={(event) => {
+            setPeriod(undefined)
+            setTo(event.target.value)
+          }}
         />
       </label>
       <label>

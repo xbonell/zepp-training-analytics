@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fetchActivities } from '../api/client'
 import { Activities } from './Activities'
 
@@ -23,7 +23,13 @@ const activity = {
 
 describe('Activities page', () => {
   beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    vi.setSystemTime(new Date(2026, 7, 26, 12))
     vi.mocked(fetchActivities).mockResolvedValue([activity])
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('loads and displays activity data', async () => {
@@ -36,6 +42,7 @@ describe('Activities page', () => {
     expect(screen.getByText(/142 bpm/)).toBeVisible()
     expect(screen.getByText(/10 min/)).toBeVisible()
     expect(screen.getByText('local estimate')).toBeVisible()
+    expect(screen.getByText('Z2')).toBeVisible()
   })
 
   it('requests activities for an applied period and sport', async () => {
@@ -51,6 +58,21 @@ describe('Activities page', () => {
     await waitFor(() => {
       expect(fetchActivities).toHaveBeenLastCalledWith(
         { from: '2026-08-01', to: '2026-08-26', sportType: 2 },
+        expect.any(AbortSignal),
+      )
+    })
+  })
+
+  it('shares period presets with the overview filters', async () => {
+    const user = userEvent.setup()
+    render(<Activities />)
+    await screen.findByText('18.4 km')
+
+    await user.click(screen.getByRole('button', { name: '30 days' }))
+
+    await waitFor(() => {
+      expect(fetchActivities).toHaveBeenLastCalledWith(
+        { from: '2026-07-28', to: '2026-08-26' },
         expect.any(AbortSignal),
       )
     })

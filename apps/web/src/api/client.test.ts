@@ -6,18 +6,19 @@ describe('API client', () => {
     vi.unstubAllGlobals()
   })
 
-  it('loads the overview from the proxied API', async () => {
+  it('encodes selected overview dates', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({ activity_count: 0 }),
     })
     vi.stubGlobal('fetch', fetchMock)
 
-    await fetchOverview()
+    await fetchOverview({ from: '2026-08-20', to: '2026-08-26' })
 
-    expect(fetchMock).toHaveBeenCalledWith('/api/overview', {
-      signal: undefined,
-    })
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/overview?from=2026-08-20&to=2026-08-26',
+      { signal: undefined },
+    )
   })
 
   it('encodes only selected activity filters', async () => {

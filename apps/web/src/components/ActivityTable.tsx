@@ -1,4 +1,9 @@
-import type { ActivitySummary } from '../api/client'
+import {
+  zoneIds,
+  type ActivitySummary,
+  type ZoneId,
+  type ZoneTotals,
+} from '../api/client'
 
 interface ActivityTableProps {
   activities: ActivitySummary[]
@@ -23,6 +28,23 @@ function formatDate(value: string) {
   }).format(new Date(value))
 }
 
+function dominantZone(zones: ZoneTotals): ZoneId | undefined {
+  const total = zoneIds.reduce((sum, zone) => sum + zones[zone], 0)
+  if (total === 0) return undefined
+  return zoneIds.reduce((dominant, zone) =>
+    zones[zone] > zones[dominant] ? zone : dominant,
+  )
+}
+
+function ZoneChip({ zones }: { zones: ZoneTotals }) {
+  const zone = dominantZone(zones)
+  return zone ? (
+    <span className={`zone-chip zone-${zone}`}>{zone.toUpperCase()}</span>
+  ) : (
+    '—'
+  )
+}
+
 export function ActivityTable({
   activities,
   compact = false,
@@ -37,6 +59,7 @@ export function ActivityTable({
             <th>Duration</th>
             <th>Distance</th>
             {!compact && <th>Avg / max HR</th>}
+            <th>Zone</th>
             <th>Splat</th>
           </tr>
         </thead>
@@ -62,6 +85,9 @@ export function ActivityTable({
                     : `${Math.round(activity.max_hr)} bpm`}
                 </td>
               )}
+              <td data-label="Zone">
+                <ZoneChip zones={activity.time_in_zone} />
+              </td>
               <td data-label="Splat">
                 {Number.isFinite(activity.splat_minutes_estimate)
                   ? `${Math.round(activity.splat_minutes_estimate)} min`
