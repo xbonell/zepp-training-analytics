@@ -70,3 +70,31 @@ def test_sync_emits_history_details_band_progress(tmp_path: Path, monkeypatch):
     band_events = [e for e in events if e.phase == "band_hr"]
     assert len(band_events) == 1
     assert band_events[0] == ProgressEvent("band_hr", 1, 1, "2023-01-01")
+
+
+def test_sync_emits_progress_for_skipped_detail_and_band(tmp_path: Path, monkeypatch):
+    monkeypatch.setattr("fitness.sync._utc_today", lambda: date(2023, 1, 1))
+    archive = RawArchive(tmp_path)
+    archive.write_bytes("activity-details/1700000000.json", b"existing")
+    archive.write_bytes("band-data/2023-01-01.json", b"existing")
+    client = FakeClient()
+    events: list[ProgressEvent] = []
+
+    report = run_sync(
+        Settings(data_raw_dir=tmp_path),
+        client,  # type: ignore[arg-type]
+        archive,
+        SyncOptions(from_date=date(2023, 1, 1)),
+        on_progress=events.append,
+    )
+
+    assert report.details_skipped == 1
+    assert report.heart_rate_skipped == 1
+    assert client.detail_calls == []
+    assert client.band_data_calls == []
+    assert [event for event in events if event.phase == "details"] == [
+        ProgressEvent("details", 1, 1, "1700000000")
+    ]
+    assert [event for event in events if event.phase == "band_hr"] == [
+        ProgressEvent("band_hr", 1, 1, "2023-01-01")
+    ]

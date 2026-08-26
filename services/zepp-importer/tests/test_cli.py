@@ -8,6 +8,7 @@ from fitness.config import Settings
 from fitness.sync import SyncReport
 
 runner = CliRunner()
+MISSING = object()
 
 
 def test_status_without_credentials(monkeypatch, tmp_path):
@@ -117,7 +118,7 @@ def test_normalize_passes_on_progress_kwarg(tmp_path, monkeypatch):
 
     seen = {}
 
-    def capture_normalize(raw_dir, duckdb_path, on_progress=None):
+    def capture_normalize(raw_dir, duckdb_path, on_progress=MISSING):
         seen["on_progress"] = on_progress
         from fitness.normalize.load import NormalizeReport
 
@@ -136,6 +137,54 @@ def test_normalize_passes_on_progress_kwarg(tmp_path, monkeypatch):
     result = runner.invoke(app, ["normalize"])
     assert result.exit_code == 0
     assert seen["on_progress"] is None
+
+
+def test_sync_passes_none_on_progress_when_not_tty(monkeypatch, tmp_path):
+    _configure_sync(monkeypatch, tmp_path)
+    seen = {}
+
+    def capture_sync(settings, client, archive, options, on_progress=MISSING):
+        seen["on_progress"] = on_progress
+        return SyncReport()
+
+    monkeypatch.setattr("fitness.cli.run_sync", capture_sync)
+    monkeypatch.setattr(
+        "fitness.progress.sys",
+        type(
+            "S",
+            (),
+            {"stderr": type("E", (), {"isatty": lambda self: False})()},
+        )(),
+    )
+
+    result = runner.invoke(app, ["sync"])
+
+    assert result.exit_code == 0
+    assert seen["on_progress"] is None
+
+
+def test_sync_wires_callback_when_tty(monkeypatch, tmp_path):
+    _configure_sync(monkeypatch, tmp_path)
+    seen = {}
+
+    def capture_sync(settings, client, archive, options, on_progress=MISSING):
+        seen["on_progress"] = on_progress
+        return SyncReport()
+
+    monkeypatch.setattr("fitness.cli.run_sync", capture_sync)
+    monkeypatch.setattr(
+        "fitness.progress.sys",
+        type(
+            "S",
+            (),
+            {"stderr": type("E", (), {"isatty": lambda self: True})()},
+        )(),
+    )
+
+    result = runner.invoke(app, ["sync"])
+
+    assert result.exit_code == 0
+    assert callable(seen["on_progress"])
 
 
 def test_normalize_wires_callback_when_tty(tmp_path, monkeypatch):
