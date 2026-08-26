@@ -7,6 +7,9 @@ data/raw/**
 data/parquet/
 data/*.duckdb*
 data/**/*.duckdb*
+data/profile.json
+data/profile.json.bak
+
 
 *.har
 *.chlsj
