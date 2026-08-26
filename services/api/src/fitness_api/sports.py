@@ -2,7 +2,7 @@ from __future__ import annotations
 
 # Confirmed against Zepp app labels for this account (2026-08-26).
 SPORT_LABELS: dict[int, str] = {
-    1: "Outdoor running",
+    1: "Outdoor Running",
     6: "Walking",
     9: "Outdoor Cycling",
     10: "Indoor Cycling",

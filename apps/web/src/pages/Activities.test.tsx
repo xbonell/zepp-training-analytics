@@ -33,7 +33,7 @@ describe('Activities page', () => {
     vi.setSystemTime(new Date(2026, 7, 26, 12))
     vi.mocked(fetchActivities).mockResolvedValue([activity])
     vi.mocked(fetchSports).mockResolvedValue([
-      { sport_type: 1, label: 'Outdoor running' },
+      { sport_type: 1, label: 'Outdoor Running' },
       { sport_type: 9, label: 'Outdoor Cycling' },
     ])
     vi.mocked(fetchProfile).mockResolvedValue({

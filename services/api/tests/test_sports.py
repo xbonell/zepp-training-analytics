@@ -2,7 +2,7 @@ from fitness_api.sports import sport_label
 
 
 def test_sport_label_known_types():
-    assert sport_label(1) == "Outdoor running"
+    assert sport_label(1) == "Outdoor Running"
     assert sport_label(6) == "Walking"
     assert sport_label(9) == "Outdoor Cycling"
     assert sport_label(10) == "Indoor Cycling"

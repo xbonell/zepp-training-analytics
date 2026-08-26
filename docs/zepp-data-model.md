@@ -83,7 +83,7 @@ Confirmed labels (matched in Zepp app, 2026-08-26):
 
 | `type` | Label | Count (approx) |
 |---|---|---|
-| 1 | Outdoor running | 22 |
+| 1 | Outdoor Running | 22 |
 | 6 | Walking | 8 |
 | 9 | Outdoor Cycling | 37 |
 | 10 | Indoor Cycling | 1 |
@@ -98,7 +98,7 @@ Dashboard maps these in `fitness_api.sports.SPORT_LABELS`; unknown ids render as
 |---|---|---|---|
 | 24 | 386 | `dis=0`, workout HR in details | Indoor Fitness |
 | 9 | 37 | large `dis`, altitude | Outdoor Cycling |
-| 1 | 22 | `dis` ~5–10 km, step counts | Outdoor running |
+| 1 | 22 | `dis` ~5–10 km, step counts | Outdoor Running |
 | 16 | 22 | `dis=0` | Freestyle |
 | 22 | 12 | `dis` + steps + altitude, slow | Hiking |
 | 6 | 8 | `dis` + steps, walk pace | Walking |

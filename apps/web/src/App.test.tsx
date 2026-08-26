@@ -19,7 +19,7 @@ vi.mock('./api/client', async (importOriginal) => {
     fetchActivityDetail: vi.fn().mockResolvedValue({
       activity_id: 'run-1',
       sport_type: 1,
-      sport_label: 'Outdoor running',
+      sport_label: 'Outdoor Running',
       started_at: '2026-08-22T17:00:00Z',
       duration_s: 120,
       distance_m: 800,
