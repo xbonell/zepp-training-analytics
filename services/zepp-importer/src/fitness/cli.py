@@ -26,6 +26,9 @@ def status_cmd() -> None:
     typer.echo(f"host: {settings.zepp_host}")
     typer.echo(f"region: {settings.zepp_region}")
     typer.echo(f"raw_dir: {settings.data_raw_dir}")
+    typer.echo(
+        f"duckdb: {settings.duckdb_path} ({'yes' if settings.duckdb_path.exists() else 'missing'})"
+    )
     typer.echo(f"credentials: {'ok' if credentials_ready(settings) else 'missing'}")
     typer.echo(f"raw_files: {archive.count_files()}")
     meta = archive.read_meta()

@@ -17,7 +17,11 @@ cp ../../.env.example ../../.env
 # edit ../../.env — see ../../docs/zepp-auth.md
 uv run fitness status
 uv run fitness sync --from 2025-01-01
+uv run fitness normalize
 ```
+
+`fitness normalize` requires local raw archives; it writes `data/zepp.duckdb` by
+default.
 
 `fitness status` works without credentials. `fitness sync` requires
 `ZEPP_APP_TOKEN` and `ZEPP_USER_ID`; it writes raw responses under `data/raw/`

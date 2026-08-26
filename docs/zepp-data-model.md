@@ -118,8 +118,9 @@ Format: `dt,dv;dt,dv;…` where
 Sample-mean BPM tracks summary `avg_heart_rate`; min/max track summary
 `min_heart_rate` / `max_heart_rate` (sentinel `0` can appear at the tail).
 
-M1 still archives bytes without decoding. M2 should decode this stream into
-`activity_samples` / workout-sourced `heart_rate_samples`.
+M1 still archives bytes without decoding. M2 decodes this stream into
+`activity_samples` (implemented by `fitness normalize`). Workout-sourced
+`heart_rate_samples` remain deferred.
 
 ## Continuous heart rate / band data
 
@@ -168,7 +169,11 @@ Implications:
 
 Refine from live evidence; unknowns stay nullable and retain `raw_file`.
 
-### `activities`
+**Implemented (this cut):** `activities` and `activity_samples` are loaded by
+`fitness normalize` from `activity-lists/` and `activity-details/`. Band-data
+continuous HR (`data_hr` → `heart_rate_samples`) remains deferred.
+
+### `activities` *(implemented)*
 
 `activity_id` (`trackid`), raw `sport_type` (`type`), start (`trackid` epoch),
 end (`end_time`), duration (`run_time`), distance (`dis`), calories, HR summary
@@ -176,15 +181,15 @@ end (`end_time`), duration (`run_time`), distance (`dis`), calories, HR summary
 `te` / `exercise_load` as Zepp-provided load, `source`, `bind_device`,
 `raw_file`.
 
-### `activity_samples`
+### `activity_samples` *(implemented)*
 
 `activity_id`, elapsed seconds, HR (decoded from detail `heart_rate`), optional
 lat/lon/altitude/pace/cadence when those series are non-empty, `raw_file`.
 
-### `heart_rate_samples`
+### `heart_rate_samples` *(deferred)*
 
 Timestamp and BPM plus source (`workout` and/or `band` once `data_hr` is
-decoded), activity ID for workout rows, `raw_file`.
+decoded), activity ID for workout rows, `raw_file`. Not populated in this cut.
 
 ### `daily_metrics`
 

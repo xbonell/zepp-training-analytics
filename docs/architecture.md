@@ -61,10 +61,23 @@ First live Global-EU sync succeeded (2026-08-26). Endpoint and field findings
 are recorded in `docs/zepp-data-model.md`. M1 contains no DuckDB, API, web UI,
 zone calculations, or proprietary training-load interpretation.
 
+## Milestone 2 slice
+
+M2 normalizes archived raw JSON into a local DuckDB database (offline; no live
+Zepp calls):
+
+```text
+data/raw/** ──► fitness normalize ──► data/zepp.duckdb
+```
+
+`activities` and `activity_samples` are populated from activity-list summaries
+and detail `heart_rate` series. Band-data continuous HR (`data_hr`) decoding
+remains deferred. Raw-file provenance is retained on each row.
+
 ## Handoff
 
-- **M2 — persistence:** begins after live raw payloads exist. Validate the
-  provisional schema, normalize into DuckDB, and retain raw-file provenance.
+- **M2 — persistence:** implemented for activity summaries and workout HR
+  samples. Band-data continuous HR and `heart_rate_samples` remain deferred.
 - **M3 — application:** expose DuckDB through FastAPI and build activity,
   detail, heart-rate, and zone visualizations in React.
 - **M4 — HR intelligence:** implement configurable zone models, observed HRmax,
