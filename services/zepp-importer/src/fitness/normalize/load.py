@@ -3,13 +3,14 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
 
 import duckdb
 
 from fitness.normalize.decode import decode_heart_rate
+from fitness.normalize.band import decode_data_hr_b64
 from fitness.normalize.schema import ensure_schema
 
 
@@ -18,6 +19,9 @@ class NormalizeReport:
     activities_upserted: int = 0
     activities_skipped: int = 0
     samples_written: int = 0
+    band_days_upserted: int = 0
+    band_days_skipped: int = 0
+    band_samples_written: int = 0
     errors: list[str] = field(default_factory=list)
 
     def __str__(self) -> str:
@@ -25,6 +29,9 @@ class NormalizeReport:
             f"activities_upserted={self.activities_upserted}, "
             f"activities_skipped={self.activities_skipped}, "
             f"samples_written={self.samples_written}, "
+            f"band_days_upserted={self.band_days_upserted}, "
+            f"band_days_skipped={self.band_days_skipped}, "
+            f"band_samples_written={self.band_samples_written}, "
             f"errors={len(self.errors)}"
         )
 
@@ -57,6 +64,7 @@ def run_normalize(raw_dir: Path, duckdb_path: Path) -> NormalizeReport:
         ensure_schema(conn)
         _load_lists(conn, raw_dir, report)
         _load_details(conn, raw_dir, report)
+        _load_band_data(conn, raw_dir, report)
     finally:
         conn.close()
     return report
@@ -230,3 +238,56 @@ def _load_details(
             report.samples_written += len(points)
         except Exception as exc:
             report.errors.append(f"{type(exc).__name__} on detail {_rel(raw_dir, path)}")
+
+
+def _load_band_data(
+    conn: duckdb.DuckDBPyConnection, raw_dir: Path, report: NormalizeReport
+) -> None:
+    band_dir = raw_dir / "band-data"
+    if not band_dir.exists():
+        return
+
+    for path in sorted(band_dir.glob("*.json")):
+        try:
+            digest = sha256_file(path)
+            rel = _rel(raw_dir, path)
+            existing = conn.execute(
+                """
+                SELECT 1 FROM heart_rate_samples
+                WHERE raw_file = ? AND content_sha256 = ?
+                LIMIT 1
+                """,
+                [rel, digest],
+            ).fetchone()
+            if existing:
+                report.band_days_skipped += 1
+                continue
+
+            payload = json.loads(path.read_text())
+            samples: dict[datetime, int] = {}
+            for row in payload.get("data") or []:
+                if not isinstance(row, dict):
+                    continue
+                day_text = row.get("date_time")
+                encoded = row.get("data_hr")
+                if not day_text or not encoded:
+                    continue
+                for recorded_at, bpm in decode_data_hr_b64(
+                    encoded, date.fromisoformat(str(day_text))
+                ):
+                    samples[recorded_at] = bpm
+
+            conn.execute("DELETE FROM heart_rate_samples WHERE raw_file = ?", [rel])
+            for recorded_at, bpm in sorted(samples.items()):
+                conn.execute(
+                    """
+                    INSERT INTO heart_rate_samples
+                      (recorded_at, hr_bpm, source, raw_file, content_sha256)
+                    VALUES (?, ?, 'band', ?, ?)
+                    """,
+                    [recorded_at, bpm, rel, digest],
+                )
+            report.band_days_upserted += 1
+            report.band_samples_written += len(samples)
+        except Exception as exc:
+            report.errors.append(f"{type(exc).__name__} on band {_rel(raw_dir, path)}")
