@@ -12,6 +12,7 @@ import duckdb
 from fitness.normalize.decode import decode_heart_rate
 from fitness.normalize.band import decode_data_hr_b64
 from fitness.normalize.schema import ensure_schema
+from fitness.progress import ProgressCallback, ProgressEvent, emit
 
 
 @dataclass
@@ -55,16 +56,20 @@ def unix_to_utc(ts: str | int) -> datetime:
     return datetime.fromtimestamp(int(ts), tz=timezone.utc)
 
 
-def run_normalize(raw_dir: Path, duckdb_path: Path) -> NormalizeReport:
+def run_normalize(
+    raw_dir: Path,
+    duckdb_path: Path,
+    on_progress: ProgressCallback | None = None,
+) -> NormalizeReport:
     report = NormalizeReport()
     duckdb_path.parent.mkdir(parents=True, exist_ok=True)
     conn = duckdb.connect(str(duckdb_path))
     try:
         conn.execute("SET TimeZone='UTC'")
         ensure_schema(conn)
-        _load_lists(conn, raw_dir, report)
-        _load_details(conn, raw_dir, report)
-        _load_band_data(conn, raw_dir, report)
+        _load_lists(conn, raw_dir, report, on_progress)
+        _load_details(conn, raw_dir, report, on_progress)
+        _load_band_data(conn, raw_dir, report, on_progress)
     finally:
         conn.close()
     return report
@@ -75,7 +80,10 @@ def _rel(raw_dir: Path, path: Path) -> str:
 
 
 def _load_lists(
-    conn: duckdb.DuckDBPyConnection, raw_dir: Path, report: NormalizeReport
+    conn: duckdb.DuckDBPyConnection,
+    raw_dir: Path,
+    report: NormalizeReport,
+    on_progress: ProgressCallback | None,
 ) -> None:
     lists_dir = raw_dir / "activity-lists"
     if not lists_dir.exists():
@@ -107,7 +115,8 @@ def _load_lists(
                 continue
             items_by_id[activity_id] = (item, path)
 
-    for activity_id, (item, path) in sorted(items_by_id.items()):
+    items = sorted(items_by_id.items())
+    for index, (activity_id, (item, path)) in enumerate(items, start=1):
         try:
             digest = item_content_sha256(item)
             existing = conn.execute(
@@ -176,16 +185,25 @@ def _load_lists(
             report.errors.append(
                 f"{type(exc).__name__} on activity {activity_id} in {_rel(raw_dir, path)}"
             )
+        finally:
+            emit(
+                on_progress,
+                ProgressEvent("lists", index, len(items), activity_id),
+            )
 
 
 def _load_details(
-    conn: duckdb.DuckDBPyConnection, raw_dir: Path, report: NormalizeReport
+    conn: duckdb.DuckDBPyConnection,
+    raw_dir: Path,
+    report: NormalizeReport,
+    on_progress: ProgressCallback | None,
 ) -> None:
     details_dir = raw_dir / "activity-details"
     if not details_dir.exists():
         return
 
-    for path in sorted(details_dir.glob("*.json")):
+    paths = sorted(details_dir.glob("*.json"))
+    for index, path in enumerate(paths, start=1):
         try:
             digest = sha256_file(path)
             activity_id = path.stem
@@ -238,16 +256,25 @@ def _load_details(
             report.samples_written += len(points)
         except Exception as exc:
             report.errors.append(f"{type(exc).__name__} on detail {_rel(raw_dir, path)}")
+        finally:
+            emit(
+                on_progress,
+                ProgressEvent("details", index, len(paths), path.stem),
+            )
 
 
 def _load_band_data(
-    conn: duckdb.DuckDBPyConnection, raw_dir: Path, report: NormalizeReport
+    conn: duckdb.DuckDBPyConnection,
+    raw_dir: Path,
+    report: NormalizeReport,
+    on_progress: ProgressCallback | None,
 ) -> None:
     band_dir = raw_dir / "band-data"
     if not band_dir.exists():
         return
 
-    for path in sorted(band_dir.glob("*.json")):
+    paths = sorted(band_dir.glob("*.json"))
+    for index, path in enumerate(paths, start=1):
         try:
             digest = sha256_file(path)
             rel = _rel(raw_dir, path)
@@ -291,3 +318,8 @@ def _load_band_data(
             report.band_samples_written += len(samples)
         except Exception as exc:
             report.errors.append(f"{type(exc).__name__} on band {_rel(raw_dir, path)}")
+        finally:
+            emit(
+                on_progress,
+                ProgressEvent("band", index, len(paths), path.stem),
+            )
