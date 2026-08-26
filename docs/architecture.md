@@ -71,13 +71,15 @@ data/raw/** ──► fitness normalize ──► data/zepp.duckdb
 ```
 
 `activities` and `activity_samples` are populated from activity-list summaries
-and detail `heart_rate` series. Band-data continuous HR (`data_hr`) decoding
-remains deferred. Raw-file provenance is retained on each row.
+and detail `heart_rate` series. `heart_rate_samples` holds all-day band HR from
+`band-data/` (`data_hr`: 1440×uint8 per minute, omit sentinel `254`, UTC
+midnight + minute index). Workout HR stays in `activity_samples` only.
+Raw-file provenance is retained on each row.
 
 ## Handoff
 
-- **M2 — persistence:** implemented for activity summaries and workout HR
-  samples. Band-data continuous HR and `heart_rate_samples` remain deferred.
+- **M2 — persistence:** implemented for activity summaries, workout HR samples
+  (`activity_samples`), and band continuous HR (`heart_rate_samples`).
 - **M3 — application:** expose DuckDB through FastAPI and build activity,
   detail, heart-rate, and zone visualizations in React.
 - **M4 — HR intelligence:** implement configurable zone models, observed HRmax,

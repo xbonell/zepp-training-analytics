@@ -119,8 +119,8 @@ Sample-mean BPM tracks summary `avg_heart_rate`; min/max track summary
 `min_heart_rate` / `max_heart_rate` (sentinel `0` can appear at the tail).
 
 M1 still archives bytes without decoding. M2 decodes this stream into
-`activity_samples` (implemented by `fitness normalize`). Workout-sourced
-`heart_rate_samples` remain deferred.
+`activity_samples` (implemented by `fitness normalize`). Workout HR does not
+populate `heart_rate_samples`; that table is band-only in this cut.
 
 ## Continuous heart rate / band data
 
@@ -133,10 +133,12 @@ hollow endpoint may remain on disk as historical evidence and are not deleted.
 
 Implications:
 
-- Band-data `data_hr` decoding remains deferred (workout detail `heart_rate` is
-  decoded in M2).
+- M2 decodes `data_hr` into `heart_rate_samples` (UTC midnight + minute index;
+  omit sentinel `254`; keep BPM in 30–220). Workout detail HR stays in
+  `activity_samples`.
 - Deduplication between band and workout HR remains **unknown**.
-- Prefer workout detail HR for in-session analytics until band decoding lands.
+- Prefer workout detail HR for in-session analytics; use band HR for all-day
+  continuous coverage.
 
 ## Units
 
@@ -172,7 +174,7 @@ Refine from live evidence; unknowns stay nullable and retain `raw_file`.
 
 **Implemented (this cut):** `activities` and `activity_samples` are loaded by
 `fitness normalize` from `activity-lists/` and `activity-details/`. Band-data
-continuous HR (`data_hr` → `heart_rate_samples`) remains deferred.
+continuous HR (`data_hr` → `heart_rate_samples`) is loaded from `band-data/`.
 
 ### `activities` *(implemented)*
 
@@ -187,10 +189,12 @@ end (`end_time`), duration (`run_time`), distance (`dis`), calories, HR summary
 `activity_id`, elapsed seconds, HR (decoded from detail `heart_rate`), optional
 lat/lon/altitude/pace/cadence when those series are non-empty, `raw_file`.
 
-### `heart_rate_samples` *(deferred)*
+### `heart_rate_samples` *(implemented — band only)*
 
-Timestamp and BPM plus source (`workout` and/or `band` once `data_hr` is
-decoded), activity ID for workout rows, `raw_file`. Not populated in this cut.
+`recorded_at` (UTC), `hr_bpm`, `source` (`'band'`), `raw_file`, `content_sha256`.
+Populated from `band-data/YYYY-MM-DD.json` via base64 `data_hr` decode (1440
+uint8/min; omit `254`; 30–220 BPM). Unchanged files skipped by SHA-256;
+changed files replace rows for that `raw_file`. Workout HR is not stored here.
 
 ### `daily_metrics`
 
