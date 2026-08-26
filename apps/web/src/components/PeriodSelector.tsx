@@ -1,5 +1,9 @@
-import { useState, type FormEvent } from 'react'
-import type { ActivityFilters } from '../api/client'
+import { useEffect, useState, type FormEvent } from 'react'
+import {
+  fetchSports,
+  type ActivityFilters,
+  type SportTypeOption,
+} from '../api/client'
 import { type DateRange, type PeriodPreset } from './period'
 import { PeriodPresets } from './PeriodPresets'
 
@@ -12,6 +16,17 @@ export function PeriodSelector({ onApply }: PeriodSelectorProps) {
   const [to, setTo] = useState('')
   const [sportType, setSportType] = useState('')
   const [period, setPeriod] = useState<PeriodPreset | undefined>('all')
+  const [sports, setSports] = useState<SportTypeOption[]>([])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    fetchSports(controller.signal)
+      .then(setSports)
+      .catch(() => {
+        if (!controller.signal.aborted) setSports([])
+      })
+    return () => controller.abort()
+  }, [])
 
   function selectPeriod(nextPeriod: PeriodPreset, range: DateRange) {
     setPeriod(nextPeriod)
@@ -62,15 +77,16 @@ export function PeriodSelector({ onApply }: PeriodSelectorProps) {
       <label>
         <span>Sport type</span>
         <select
+          aria-label="Sport type"
           value={sportType}
           onChange={(event) => setSportType(event.target.value)}
         >
           <option value="">All sports</option>
-          <option value="1">Sport 1</option>
-          <option value="2">Sport 2</option>
-          <option value="3">Sport 3</option>
-          <option value="4">Sport 4</option>
-          <option value="5">Sport 5</option>
+          {sports.map((sport) => (
+            <option key={sport.sport_type} value={sport.sport_type}>
+              {sport.label}
+            </option>
+          ))}
         </select>
       </label>
       <button type="submit">Apply filters</button>

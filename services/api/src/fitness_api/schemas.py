@@ -20,6 +20,7 @@ def _empty_zone_totals() -> dict[ZoneId, float]:
 class ActivitySummary(BaseModel):
     activity_id: str
     sport_type: int | None
+    sport_label: str
     source: str | None
     started_at: datetime
     ended_at: datetime | None
@@ -60,6 +61,11 @@ class ZonesResponse(BaseModel):
     boundaries: dict[ZoneId, tuple[float, float]]
     colors: dict[ZoneId, str]
     age_formula_refs: AgeFormulaReferences | None = None
+
+
+class SportTypeOption(BaseModel):
+    sport_type: int
+    label: str
 
 
 class OverviewResponse(BaseModel):

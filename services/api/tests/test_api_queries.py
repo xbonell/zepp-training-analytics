@@ -239,6 +239,7 @@ def test_activities_filters_by_inclusive_dates_and_sport(tmp_path):
     assert [activity["activity_id"] for activity in payload] == ["ride-1"]
     assert payload[0]["duration_s"] == 180
     assert payload[0]["started_at"] == "2026-08-25T20:00:00+02:00"
+    assert payload[0]["sport_label"] == "Sport 2"
 
 
 def test_activity_summaries_preserve_zone_totals_and_splats(tmp_path):
@@ -247,6 +248,7 @@ def test_activity_summaries_preserve_zone_totals_and_splats(tmp_path):
     payload = client.get("/api/activities", params={"to": "2026-08-24"}).json()
 
     assert payload[0]["activity_id"] == "run-1"
+    assert payload[0]["sport_label"] == "Outdoor running"
     assert payload[0]["time_in_zone"] == {
         "below": 0.0,
         "z1": 0.0,
@@ -284,6 +286,7 @@ def test_activity_detail_has_zoned_hr_series_and_estimated_splats(tmp_path):
 
     assert response.status_code == 200
     payload = response.json()
+    assert payload["sport_label"] == "Outdoor running"
     assert payload["hr_series"] == [
         {"elapsed_s": 0, "hr_bpm": 100, "zone": "z2"},
         {"elapsed_s": 60, "hr_bpm": 140, "zone": "z4"},
@@ -299,6 +302,17 @@ def test_activity_detail_has_zoned_hr_series_and_estimated_splats(tmp_path):
     }
     assert payload["splat_minutes_estimate"] == 1.0
     assert client.get("/api/activities/missing").status_code == 404
+
+
+def test_sports_lists_distinct_types_with_labels(tmp_path):
+    client = make_client(tmp_path)
+
+    payload = client.get("/api/sports").json()
+
+    assert payload == [
+        {"sport_type": 1, "label": "Outdoor running"},
+        {"sport_type": 2, "label": "Sport 2"},
+    ]
 
 
 def test_overview_aggregates_all_activity_samples_and_recent(tmp_path):

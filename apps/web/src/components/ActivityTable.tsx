@@ -77,7 +77,7 @@ export function ActivityTable({
                   {formatDate(activity.started_at, timeZone)}
                 </a>
               </td>
-              <td data-label="Sport">Sport {activity.sport_type}</td>
+              <td data-label="Sport">{activity.sport_label}</td>
               <td data-label="Duration">
                 {formatDuration(activity.duration_s)}
               </td>

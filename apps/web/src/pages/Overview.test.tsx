@@ -19,6 +19,7 @@ const overview = {
     {
       activity_id: 'run-1',
       sport_type: 1,
+      sport_label: 'Outdoor running',
       started_at: '2026-08-24T07:30:00Z',
       duration_s: 3600,
       distance_m: 10000,

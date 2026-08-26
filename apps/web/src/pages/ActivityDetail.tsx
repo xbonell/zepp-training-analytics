@@ -120,7 +120,7 @@ export function ActivityDetail({ activityId }: ActivityDetailProps) {
       </a>
       <div className="page-heading detail-heading">
         <div>
-          <p className="eyebrow">Sport {activity.sport_type}</p>
+          <p className="eyebrow">{activity.sport_label}</p>
           <h1>Activity detail</h1>
         </div>
         <p className="detail-date">{formatDate(activity.started_at, timeZone)}</p>

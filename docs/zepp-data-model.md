@@ -79,19 +79,34 @@ sentinel as null for M2. The synthetic test fixture is not live evidence.
 
 ### Sport `type` values (this account)
 
-| `type` | Count | Empirical traits (live) | Zepp OS `subType` candidate |
+Confirmed labels (matched in Zepp app, 2026-08-26):
+
+| `type` | Label | Count (approx) |
+|---|---|---|
+| 1 | Outdoor running | 22 |
+| 6 | Walking | 8 |
+| 9 | Outdoor Cycling | 37 |
+| 10 | Indoor Cycling | 1 |
+| 16 | Freestyle | 22 |
+| 22 | Hiking | 12 |
+| 24 | Indoor Fitness | 386 |
+| 40 | Indoor Walk | 1 |
+
+Dashboard maps these in `fitness_api.sports.SPORT_LABELS`; unknown ids render as `Sport {n}`.
+
+| `type` | Count | Empirical traits (live) | Notes |
 |---|---|---|---|
 | 24 | 386 | `dis=0`, workout HR in details | Indoor Fitness |
-| 9 | 37 | large `dis`, `total_step=-1`, altitude | Elliptical Machine — **conflicts** with distance profile; treat as unlabeled |
-| 1 | 22 | `dis` ~5–10 km, step counts | Outdoor Running |
-| 16 | 22 | `dis=0`, zeroed swim/pace fields | not listed in Zepp OS appendix |
-| 22 | 12 | `dis` + steps + altitude | not listed between 21 and 23 |
-| 6 | 8 | `dis` + steps + altitude; swim metrics `-1` | Pool Swimming — **conflicts** with step/altitude profile |
-| 10 | 1 | `dis=0` | Mountaineering (candidate only) |
-| 40 | 1 | `dis` + steps | Indoor Walking |
+| 9 | 37 | large `dis`, altitude | Outdoor Cycling |
+| 1 | 22 | `dis` ~5–10 km, step counts | Outdoor running |
+| 16 | 22 | `dis=0` | Freestyle |
+| 22 | 12 | `dis` + steps + altitude, slow | Hiking |
+| 6 | 8 | `dis` + steps, walk pace | Walking |
+| 10 | 1 | `dis=0` | Indoor Cycling |
+| 40 | 1 | `dis` + steps | Indoor Walk |
 
-Keep raw `type` integers in storage. Do not invent analytical categories until
-labels are confirmed (user naming, app capture, or a trusted mapping).
+Keep raw `type` integers in storage. Display labels are a local confirmed map,
+not inventing analytical categories beyond Zepp app names.
 
 ## Detail series
 

@@ -28,6 +28,7 @@ export interface Profile {
 export interface ActivitySummary {
   activity_id: string
   sport_type: number
+  sport_label: string
   started_at: string
   duration_s: number
   distance_m?: number | null
@@ -79,6 +80,11 @@ function dateParams(filters: OverviewFilters) {
   return params
 }
 
+export interface SportTypeOption {
+  sport_type: number
+  label: string
+}
+
 export function fetchOverview(
   filters: OverviewFilters = {},
   signal?: AbortSignal,
@@ -104,6 +110,10 @@ export function fetchActivityDetail(
   signal?: AbortSignal,
 ): Promise<ActivityDetail> {
   return getJson(`/api/activities/${encodeURIComponent(activityId)}`, signal)
+}
+
+export function fetchSports(signal?: AbortSignal): Promise<SportTypeOption[]> {
+  return getJson('/api/sports', signal)
 }
 
 export function fetchZones(signal?: AbortSignal): Promise<ZonesResponse> {

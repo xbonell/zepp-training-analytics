@@ -13,6 +13,7 @@ from fitness_api.queries import (
     get_activity,
     get_activity_samples,
     list_activities,
+    list_sport_types,
     overview_peak_hr,
     overview_totals,
     suggested_hrmax,
@@ -22,8 +23,10 @@ from fitness_api.schemas import (
     ActivitySummary,
     HeartRatePoint,
     OverviewResponse,
+    SportTypeOption,
     ZonesResponse,
 )
+from fitness_api.sports import sport_label
 from fitness_api.zones import (
     BELOW_COLOR,
     OTF_BANDS,
@@ -67,6 +70,7 @@ def _enrich_activity_summaries(
     hrmax: float | None,
 ) -> list[dict]:
     for activity in activities:
+        activity["sport_label"] = sport_label(activity.get("sport_type"))
         totals = (
             time_in_zones(samples.get(activity["activity_id"], []), hrmax)
             if hrmax is not None
@@ -130,6 +134,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             age_formula_refs=age_formula_refs,
         )
 
+    @app.get("/api/sports", response_model=list[SportTypeOption])
+    def sports() -> list[SportTypeOption]:
+        _require_duckdb(app_settings)
+        return [
+            SportTypeOption(sport_type=sport_type, label=sport_label(sport_type))
+            for sport_type in list_sport_types(app_settings.duckdb_path)
+        ]
+
     @app.get("/api/activities", response_model=list[ActivitySummary])
     def activities(
         from_date: date | None = Query(default=None, alias="from"),
@@ -172,6 +184,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         ]
         activity["time_in_zone"] = totals
         activity["splat_minutes_estimate"] = splat_minutes(totals)
+        activity["sport_label"] = sport_label(activity.get("sport_type"))
         return activity
 
     @app.get("/api/overview", response_model=OverviewResponse)

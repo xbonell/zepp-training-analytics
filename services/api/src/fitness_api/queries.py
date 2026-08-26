@@ -187,3 +187,16 @@ def overview_peak_hr(
     if row is None or row[0] is None:
         return None
     return int(row[0])
+
+
+def list_sport_types(path: Path) -> list[int]:
+    with _connect(path) as conn:
+        rows = conn.execute(
+            """
+            SELECT DISTINCT sport_type
+            FROM activities
+            WHERE sport_type IS NOT NULL
+            ORDER BY sport_type
+            """
+        ).fetchall()
+    return [int(sport_type) for (sport_type,) in rows]
