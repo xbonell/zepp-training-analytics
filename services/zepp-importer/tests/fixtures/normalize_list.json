@@ -1,0 +1,40 @@
+{
+  "code": 1,
+  "message": "success",
+  "data": {
+    "next": -1,
+    "summary": [
+      {
+        "trackid": "1700000100",
+        "source": "run.200.huami.com",
+        "type": 24,
+        "end_time": "1700000400",
+        "run_time": "300",
+        "dis": "0.0",
+        "calorie": "50.0",
+        "avg_heart_rate": "120.0",
+        "max_heart_rate": 150,
+        "min_heart_rate": 80,
+        "te": 20,
+        "exercise_load": 100,
+        "bind_device": "0:MILI:200:test",
+        "total_step": -1
+      },
+      {
+        "trackid": "1700001000",
+        "source": "run.200.huami.com",
+        "type": 1,
+        "end_time": "1700001900",
+        "run_time": "900",
+        "dis": "5000.0",
+        "calorie": "400.0",
+        "avg_heart_rate": "150.0",
+        "max_heart_rate": 180,
+        "min_heart_rate": 100,
+        "te": -1,
+        "exercise_load": -1,
+        "bind_device": "0:MILI:200:test"
+      }
+    ]
+  }
+}
