@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import csv
 import hashlib
 import json
+import tempfile
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Sequence
 
 import duckdb
 
@@ -72,6 +74,39 @@ def run_normalize(raw_dir: Path, duckdb_path: Path) -> NormalizeReport:
 
 def _rel(raw_dir: Path, path: Path) -> str:
     return path.relative_to(raw_dir).as_posix()
+
+
+def _csv_cell(value: Any) -> Any:
+    if isinstance(value, datetime):
+        return value.isoformat()
+    return value
+
+
+def _bulk_insert(
+    conn: duckdb.DuckDBPyConnection,
+    table: str,
+    columns: Sequence[str],
+    rows: Sequence[Sequence[Any]],
+) -> None:
+    """Load many rows via COPY — far faster than per-row execute()."""
+    if not rows:
+        return
+    with tempfile.NamedTemporaryFile(
+        "w", newline="", suffix=".csv", delete=False, encoding="utf-8"
+    ) as handle:
+        writer = csv.writer(handle)
+        for row in rows:
+            writer.writerow(_csv_cell(v) for v in row)
+        csv_path = handle.name
+    try:
+        col_list = ", ".join(columns)
+        # DuckDB COPY takes a filesystem path; quote for SQL string literal.
+        escaped = csv_path.replace("'", "''")
+        conn.execute(
+            f"COPY {table} ({col_list}) FROM '{escaped}' (FORMAT CSV, HEADER false)"
+        )
+    finally:
+        Path(csv_path).unlink(missing_ok=True)
 
 
 def _load_lists(
@@ -217,15 +252,22 @@ def _load_details(
                     ],
                 )
             conn.execute("DELETE FROM activity_samples WHERE activity_id = ?", [activity_id])
-            for elapsed_s, hr_bpm in points:
-                conn.execute(
-                    """
-                    INSERT INTO activity_samples
-                      (activity_id, elapsed_s, hr_bpm, detail_raw_file, detail_content_sha256)
-                    VALUES (?, ?, ?, ?, ?)
-                    """,
-                    [activity_id, elapsed_s, hr_bpm, _rel(raw_dir, path), digest],
-                )
+            rel = _rel(raw_dir, path)
+            _bulk_insert(
+                conn,
+                "activity_samples",
+                (
+                    "activity_id",
+                    "elapsed_s",
+                    "hr_bpm",
+                    "detail_raw_file",
+                    "detail_content_sha256",
+                ),
+                [
+                    (activity_id, elapsed_s, hr_bpm, rel, digest)
+                    for elapsed_s, hr_bpm in points
+                ],
+            )
             conn.execute(
                 """
                 UPDATE activities SET
@@ -233,7 +275,7 @@ def _load_details(
                   detail_content_sha256 = ?
                 WHERE activity_id = ?
                 """,
-                [_rel(raw_dir, path), digest, activity_id],
+                [rel, digest, activity_id],
             )
             report.samples_written += len(points)
         except Exception as exc:
@@ -278,15 +320,15 @@ def _load_band_data(
                     samples[recorded_at] = bpm
 
             conn.execute("DELETE FROM heart_rate_samples WHERE raw_file = ?", [rel])
-            for recorded_at, bpm in sorted(samples.items()):
-                conn.execute(
-                    """
-                    INSERT INTO heart_rate_samples
-                      (recorded_at, hr_bpm, source, raw_file, content_sha256)
-                    VALUES (?, ?, 'band', ?, ?)
-                    """,
-                    [recorded_at, bpm, rel, digest],
-                )
+            _bulk_insert(
+                conn,
+                "heart_rate_samples",
+                ("recorded_at", "hr_bpm", "source", "raw_file", "content_sha256"),
+                [
+                    (recorded_at, bpm, "band", rel, digest)
+                    for recorded_at, bpm in sorted(samples.items())
+                ],
+            )
             report.band_days_upserted += 1
             report.band_samples_written += len(samples)
         except Exception as exc:

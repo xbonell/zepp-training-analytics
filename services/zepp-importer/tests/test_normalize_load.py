@@ -1,5 +1,6 @@
 import json
 import shutil
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -44,6 +45,42 @@ def test_normalize_loads_summaries_and_samples(tmp_path: Path):
     ).fetchone()[0]
     assert te_null is None
     conn.close()
+
+
+def test_normalize_large_detail_bulk_insert_is_fast(tmp_path: Path):
+    # Regression: per-row INSERT was ~1.8k rows/s (~9+ min for real archives).
+    # Bulk load must finish a 20k-sample detail well under that budget.
+    n = 20_000
+    raw = tmp_path / "raw"
+    (raw / "activity-details").mkdir(parents=True)
+    heart_rate = ";".join(["1,100"] + ["1,0"] * (n - 1))
+    (raw / "activity-details" / "1700000100.json").write_text(
+        json.dumps(
+            {
+                "code": 1,
+                "data": {
+                    "trackid": 1700000100,
+                    "source": "run.200.huami.com",
+                    "heart_rate": heart_rate,
+                },
+            }
+        )
+    )
+    db = tmp_path / "zepp.duckdb"
+
+    t0 = time.perf_counter()
+    report = run_normalize(raw, db)
+    elapsed = time.perf_counter() - t0
+
+    assert report.samples_written == n
+    assert report.errors == []
+    assert elapsed < 2.0, f"bulk insert too slow: {elapsed:.2f}s for {n} samples"
+    conn = duckdb.connect(str(db))
+    count = conn.execute(
+        "SELECT COUNT(*) FROM activity_samples WHERE activity_id = '1700000100'"
+    ).fetchone()[0]
+    conn.close()
+    assert count == n
 
 
 def test_normalize_skips_unchanged_on_second_run(tmp_path: Path):
