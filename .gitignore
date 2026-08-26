@@ -28,3 +28,4 @@ dist/
 uv.lock
 
 .DS_Store
+.worktrees/
