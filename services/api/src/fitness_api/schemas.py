@@ -69,4 +69,7 @@ class OverviewResponse(BaseModel):
     splat_minutes_estimate: float = Field(
         description="Local estimate based on time in heart-rate zones 4 and 5."
     )
+    peak_hr_bpm: int | None = Field(
+        description="Highest positive workout sample HR in the selected period."
+    )
     recent: list[ActivitySummary]

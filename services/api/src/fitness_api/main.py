@@ -13,6 +13,7 @@ from fitness_api.queries import (
     get_activity,
     get_activity_samples,
     list_activities,
+    overview_peak_hr,
     overview_totals,
     suggested_hrmax,
 )
@@ -207,6 +208,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             duration_s=duration,
             zone_mix=zone_mix,
             splat_minutes_estimate=splat_minutes(zone_mix),
+            peak_hr_bpm=overview_peak_hr(
+                app_settings.duckdb_path,
+                from_date=from_date,
+                to_date=to_date,
+            ),
             recent=_enrich_activity_summaries(recent, samples, hrmax),
         )
 

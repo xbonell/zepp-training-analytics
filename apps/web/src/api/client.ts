@@ -52,6 +52,7 @@ export interface OverviewResponse {
   duration_s: number
   zone_mix: ZoneTotals
   splat_minutes_estimate: number
+  peak_hr_bpm: number | null
   recent: ActivitySummary[]
 }
 

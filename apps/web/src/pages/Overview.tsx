@@ -88,6 +88,15 @@ export function Overview() {
           <span>Local splat estimate</span>
           <strong>{Math.round(overview.splat_minutes_estimate)} min</strong>
         </div>
+        <div>
+          <span>Peak HR</span>
+          <strong>
+            {overview.peak_hr_bpm == null
+              ? '—'
+              : `${overview.peak_hr_bpm} bpm`}
+          </strong>
+          <small>Highest workout sample</small>
+        </div>
       </section>
 
       {overview.activity_count === 0 ? (

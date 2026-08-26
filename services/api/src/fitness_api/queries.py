@@ -156,3 +156,34 @@ def overview_totals(
             parameters,
         ).fetchone()
     return int(count), int(duration)
+
+
+def overview_peak_hr(
+    path: Path,
+    from_date: date | None = None,
+    to_date: date | None = None,
+) -> int | None:
+    conditions = ["samples.hr_bpm > 0"]
+    parameters: list[Any] = []
+    if from_date is not None:
+        conditions.append("activities.started_at >= CAST(? AS DATE)")
+        parameters.append(from_date)
+    if to_date is not None:
+        conditions.append(
+            "activities.started_at < CAST(? AS DATE) + INTERVAL 1 DAY"
+        )
+        parameters.append(to_date)
+
+    with _connect(path) as conn:
+        row = conn.execute(
+            f"""
+            SELECT max(samples.hr_bpm)
+            FROM activity_samples AS samples
+            JOIN activities USING (activity_id)
+            WHERE {" AND ".join(conditions)}
+            """,
+            parameters,
+        ).fetchone()
+    if row is None or row[0] is None:
+        return None
+    return int(row[0])

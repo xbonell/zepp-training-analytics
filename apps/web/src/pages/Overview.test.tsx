@@ -14,6 +14,7 @@ const overview = {
   duration_s: 5400,
   zone_mix: { below: 0, z1: 600, z2: 1800, z3: 1800, z4: 900, z5: 300 },
   splat_minutes_estimate: 20,
+  peak_hr_bpm: 181,
   recent: [
     {
       activity_id: 'run-1',
@@ -64,6 +65,9 @@ describe('Overview page', () => {
     expect(screen.getByText('2')).toBeVisible()
     expect(screen.getByText('1h 30m')).toBeVisible()
     expect(screen.getByText('Local splat estimate')).toBeVisible()
+    expect(screen.getByText('Peak HR')).toBeVisible()
+    expect(screen.getByText('181 bpm')).toBeVisible()
+    expect(screen.getByText('Highest workout sample')).toBeVisible()
     expect(
       screen.getByRole('img', { name: /heart-rate zone mix/i }),
     ).toBeVisible()
@@ -90,11 +94,14 @@ describe('Overview page', () => {
     vi.mocked(fetchOverview).mockResolvedValue({
       ...overview,
       activity_count: 0,
+      peak_hr_bpm: null,
       recent: [],
     })
 
     render(<Overview />)
 
     expect(await screen.findByText('No sessions synced')).toBeVisible()
+    expect(screen.getByText('Peak HR')).toBeVisible()
+    expect(screen.getByText('—')).toBeVisible()
   })
 })

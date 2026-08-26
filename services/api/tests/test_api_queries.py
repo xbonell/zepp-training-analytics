@@ -317,6 +317,7 @@ def test_overview_aggregates_all_activity_samples_and_recent(tmp_path):
         "z5": 120.0,
     }
     assert payload["splat_minutes_estimate"] == 3.0
+    assert payload["peak_hr_bpm"] == 160
     assert [activity["activity_id"] for activity in payload["recent"]] == [
         "ride-1",
         "run-1",
@@ -344,9 +345,22 @@ def test_overview_filters_totals_zones_splats_and_recent_by_period(tmp_path):
         "z5": 0.0,
     }
     assert payload["splat_minutes_estimate"] == 1.0
+    assert payload["peak_hr_bpm"] == 150
     assert [activity["activity_id"] for activity in payload["recent"]] == ["run-1"]
     assert payload["recent"][0]["time_in_zone"]["z4"] == 60.0
     assert payload["recent"][0]["splat_minutes_estimate"] == 1.0
+
+
+def test_overview_peak_hr_null_when_period_has_no_samples(tmp_path):
+    client = make_client(tmp_path)
+
+    payload = client.get(
+        "/api/overview",
+        params={"from": "2020-01-01", "to": "2020-01-02"},
+    ).json()
+
+    assert payload["activity_count"] == 0
+    assert payload["peak_hr_bpm"] is None
 
 
 def test_profile_endpoints_round_trip(tmp_path):

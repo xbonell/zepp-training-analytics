@@ -12,6 +12,7 @@ vi.mock('./api/client', async (importOriginal) => {
       duration_s: 0,
       zone_mix: { below: 0, z1: 0, z2: 0, z3: 0, z4: 0, z5: 0 },
       splat_minutes_estimate: 0,
+      peak_hr_bpm: null,
       recent: [],
     }),
     fetchActivities: vi.fn().mockResolvedValue([]),
