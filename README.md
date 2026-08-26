@@ -27,6 +27,16 @@ uv run fitness normalize
 `ZEPP_APP_TOKEN` and `ZEPP_USER_ID`; it writes raw responses under `data/raw/`
 by default. Never commit `.env`, captures, or health data.
 
+## Local API
+
+```bash
+cd services/api
+uv sync --extra dev
+uv run uvicorn fitness_api.main:app --reload
+```
+
+The health endpoint is available at `http://localhost:8000/api/health`.
+
 ## Documentation
 
 - [Architecture and milestone boundaries](docs/architecture.md)
