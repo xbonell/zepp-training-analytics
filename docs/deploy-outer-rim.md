@@ -64,7 +64,13 @@ Paste into `outer-rim/docker-compose.yml` (alongside existing site services):
     cpus: '1.0'
     mem_limit: 1G
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8000/api/health >/dev/null 2>&1"]
+      test:
+        [
+          "CMD",
+          "python3",
+          "-c",
+          "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=5).status == 200 else 1)",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
