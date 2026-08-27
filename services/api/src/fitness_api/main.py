@@ -175,6 +175,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 zepp_env_path=app_settings.zepp_env_path,
                 data_raw_dir=app_settings.data_raw_dir,
                 duckdb_path=app_settings.duckdb_path,
+                zepp_host=app_settings.zepp_host,
             )
         except SyncJobBusy as exc:
             raise HTTPException(

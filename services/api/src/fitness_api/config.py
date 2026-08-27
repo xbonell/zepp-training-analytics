@@ -54,3 +54,7 @@ class Settings(BaseSettings):
         default="http://localhost:5173",
         validation_alias="API_CORS_ORIGIN",
     )
+    zepp_host: str = Field(
+        default="api-mifit-us3.zepp.com",
+        validation_alias="ZEPP_HOST",
+    )
