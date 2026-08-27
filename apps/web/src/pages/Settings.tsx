@@ -117,6 +117,10 @@ export function Settings() {
         : 'Not set'
 
   const syncRunning = syncJob.status === 'running'
+  const formatTimestamp = (value: string | null) =>
+    value ? new Date(value).toLocaleString() : null
+  const startedAtDisplay = formatTimestamp(syncJob.started_at)
+  const finishedAtDisplay = formatTimestamp(syncJob.finished_at)
 
   return (
     <>
@@ -189,6 +193,13 @@ export function Settings() {
             {syncJob.message && <> — {syncJob.message}</>}
             {syncJob.error && <> — {syncJob.error}</>}
           </p>
+          {(startedAtDisplay || finishedAtDisplay) && (
+            <p>
+              {startedAtDisplay && <>Started: {startedAtDisplay}</>}
+              {startedAtDisplay && finishedAtDisplay && <> · </>}
+              {finishedAtDisplay && <>Finished: {finishedAtDisplay}</>}
+            </p>
+          )}
           <div className="profile-form__actions">
             <button
               type="button"

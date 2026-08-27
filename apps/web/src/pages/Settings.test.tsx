@@ -45,6 +45,26 @@ describe('Settings', () => {
     ).toBeDisabled()
   })
 
+  it('shows sync started and finished timestamps', async () => {
+    vi.mocked(api.fetchSyncJob).mockResolvedValue({
+      status: 'ok',
+      started_at: '2026-08-27T10:00:00Z',
+      finished_at: '2026-08-27T10:05:00Z',
+      error: null,
+      message: null,
+    })
+    render(<Settings />)
+    expect(await screen.findByText(/started:/i)).toBeVisible()
+    expect(screen.getByText(/finished:/i)).toBeVisible()
+  })
+
+  it('omits the timestamp line when neither is set', async () => {
+    render(<Settings />)
+    await screen.findByText(/status:/i)
+    expect(screen.queryByText(/started:/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/finished:/i)).not.toBeInTheDocument()
+  })
+
   it('saves connection with pasted token', async () => {
     vi.mocked(api.updateConnection).mockResolvedValue({
       user_id: '2',
