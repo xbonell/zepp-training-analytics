@@ -9,6 +9,8 @@ data/*.duckdb*
 data/**/*.duckdb*
 data/profile.json
 data/profile.json.bak
+data/zepp.env
+data/_meta/sync_job.json
 
 
 *.har
