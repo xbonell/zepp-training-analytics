@@ -1,8 +1,11 @@
+from contextlib import contextmanager
 from datetime import date
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 
 import duckdb
+
+from fitness_api.db import DUCKDB_LOCK
 
 ACTIVITY_COLUMNS = """
 activity_id, sport_type, source, started_at, ended_at, duration_s,
@@ -10,10 +13,17 @@ distance_m, calories, avg_hr, max_hr, min_hr, te, exercise_load
 """
 
 
-def _connect(path: Path) -> duckdb.DuckDBPyConnection:
-    connection = duckdb.connect(str(path), read_only=True)
-    connection.execute("SET TimeZone = 'Europe/Madrid'")
-    return connection
+@contextmanager
+def _connect(path: Path) -> Iterator[duckdb.DuckDBPyConnection]:
+    # Held for the lifetime of the connection so it can never overlap with
+    # the sync job's read-write normalize connection. See fitness_api.db.
+    with DUCKDB_LOCK:
+        connection = duckdb.connect(str(path), read_only=True)
+        try:
+            connection.execute("SET TimeZone = 'Europe/Madrid'")
+            yield connection
+        finally:
+            connection.close()
 
 
 def _rows(cursor: duckdb.DuckDBPyConnection) -> list[dict[str, Any]]:

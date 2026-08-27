@@ -15,6 +15,7 @@ from fitness.normalize.load import run_normalize
 from fitness.sync import SyncOptions, run_sync
 
 from fitness_api.connection import load_connection
+from fitness_api.db import DUCKDB_LOCK
 
 _JOB_LOCK = threading.Lock()
 
@@ -101,22 +102,25 @@ def _run_job(
 
     try:
         report = run_sync_fn(**job_kwargs)
-        if getattr(report, "errors", None):
-            finished_at = datetime.now(timezone.utc)
-            error = "; ".join(report.errors)
-            state = SyncJobState(
-                status="error",
-                started_at=started_at,
-                finished_at=finished_at,
-                error=error,
-            )
-            write_sync_job(sync_job_path, state)
-            return state
+        sync_errors = getattr(report, "errors", None)
+        sync_warning = (
+            "Sync completed with warnings: " + "; ".join(sync_errors)
+            if sync_errors
+            else None
+        )
 
-        normalize_report = run_normalize_fn(**job_kwargs)
+        # Sync returned (didn't raise) even with soft errors, so there may
+        # still be new raw data worth normalizing. Only a raised exception
+        # (auth failure or otherwise, handled below) skips normalize.
+        # Serialize with API read queries; see fitness_api.db.DUCKDB_LOCK.
+        with DUCKDB_LOCK:
+            normalize_report = run_normalize_fn(**job_kwargs)
         finished_at = datetime.now(timezone.utc)
-        if getattr(normalize_report, "errors", None):
-            error = "; ".join(normalize_report.errors)
+        normalize_errors = getattr(normalize_report, "errors", None)
+        if normalize_errors:
+            error = "; ".join(normalize_errors)
+            if sync_warning:
+                error = f"{sync_warning}; {error}"
             state = SyncJobState(
                 status="error",
                 started_at=started_at,
@@ -131,6 +135,7 @@ def _run_job(
             started_at=started_at,
             finished_at=finished_at,
             error=None,
+            message=sync_warning,
         )
         write_sync_job(sync_job_path, state)
         return state
