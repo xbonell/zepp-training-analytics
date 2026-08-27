@@ -58,6 +58,18 @@ vi.mock('./api/client', async (importOriginal) => {
       theme_preference: 'system',
       display_timezone: 'Europe/Madrid',
     }),
+    fetchConnection: vi.fn().mockResolvedValue({
+      user_id: '1',
+      token_set: true,
+      token_hint: 'oken',
+    }),
+    fetchSyncJob: vi.fn().mockResolvedValue({
+      status: 'ok',
+      started_at: null,
+      finished_at: null,
+      error: null,
+      message: null,
+    }),
   }
 })
 
@@ -80,6 +92,7 @@ describe('application shell', () => {
     expect(screen.getByRole('link', { name: 'Overview' })).toBeVisible()
     expect(screen.getByRole('link', { name: 'Activities' })).toBeVisible()
     expect(screen.getByRole('link', { name: 'Zones' })).toBeVisible()
+    expect(screen.getByRole('link', { name: 'Settings' })).toBeVisible()
   })
 
   it('renders the page selected by the hash route', async () => {
@@ -129,6 +142,24 @@ describe('application shell', () => {
       await screen.findByRole('heading', { name: 'Heart-rate zones' }),
     ).toBeVisible()
     expect(screen.getByRole('link', { name: 'Zones' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    )
+  })
+
+  it('renders settings from the settings route', async () => {
+    window.location.hash = '#settings'
+
+    render(
+      <ThemeProvider>
+        <App />
+      </ThemeProvider>,
+    )
+
+    expect(
+      await screen.findByRole('heading', { name: 'Settings' }),
+    ).toBeVisible()
+    expect(screen.getByRole('link', { name: 'Settings' })).toHaveAttribute(
       'aria-current',
       'page',
     )

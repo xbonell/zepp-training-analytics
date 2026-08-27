@@ -135,3 +135,45 @@ export async function updateProfile(profile: Profile): Promise<Profile> {
   }
   return response.json() as Promise<Profile>
 }
+
+export interface ConnectionView {
+  user_id: string | null
+  token_set: boolean
+  token_hint: string | null
+}
+
+export interface SyncJobView {
+  status: 'idle' | 'running' | 'ok' | 'error'
+  started_at: string | null
+  finished_at: string | null
+  error: string | null
+  message: string | null
+}
+
+export function fetchConnection(signal?: AbortSignal) {
+  return getJson<ConnectionView>('/api/settings/connection', signal)
+}
+
+export async function updateConnection(body: {
+  user_id: string | null
+  app_token?: string | null
+}): Promise<ConnectionView> {
+  const response = await fetch('/api/settings/connection', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!response.ok) throw new Error(`API request failed (${response.status})`)
+  return response.json()
+}
+
+export function fetchSyncJob(signal?: AbortSignal) {
+  return getJson<SyncJobView>('/api/settings/sync', signal)
+}
+
+export async function startSyncJob(): Promise<SyncJobView> {
+  const response = await fetch('/api/settings/sync', { method: 'POST' })
+  if (response.status === 409) throw new Error('Sync already running')
+  if (!response.ok) throw new Error(`API request failed (${response.status})`)
+  return response.json()
+}

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Activities } from './pages/Activities'
 import { ActivityDetail } from './pages/ActivityDetail'
 import { Overview } from './pages/Overview'
+import { Settings } from './pages/Settings'
 import { Zones } from './pages/Zones'
 import { ThemeToggle } from './theme/ThemeProvider'
 
@@ -9,10 +10,12 @@ type Route =
   | { name: 'overview' }
   | { name: 'activities'; activityId?: string }
   | { name: 'zones' }
+  | { name: 'settings' }
 
 function currentRoute(): Route {
   const route = window.location.hash.slice(1)
   if (route === 'zones') return { name: 'zones' }
+  if (route === 'settings') return { name: 'settings' }
   if (route === 'activities') return { name: 'activities' }
   if (route.startsWith('activities/')) {
     try {
@@ -69,6 +72,13 @@ function App() {
           >
             Zones
           </a>
+          <a
+            className={route.name === 'settings' ? 'is-active' : undefined}
+            href="#settings"
+            aria-current={route.name === 'settings' ? 'page' : undefined}
+          >
+            Settings
+          </a>
         </nav>
 
         <ThemeToggle />
@@ -83,6 +93,7 @@ function App() {
             <Activities />
           ))}
         {route.name === 'zones' && <Zones />}
+        {route.name === 'settings' && <Settings />}
       </main>
 
       <footer>
