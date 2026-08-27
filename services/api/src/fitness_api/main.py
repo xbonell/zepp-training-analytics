@@ -31,8 +31,10 @@ from fitness_api.schemas import (
     HeartRatePoint,
     OverviewResponse,
     SportTypeOption,
+    SyncJobView,
     ZonesResponse,
 )
+from fitness_api.sync_job import SyncJobBusy, read_sync_job, start_sync_job
 from fitness_api.sports import sport_label
 from fitness_api.zones import (
     BELOW_COLOR,
@@ -130,6 +132,27 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             replace_token=replace_token,
         )
         return ConnectionView.model_validate(connection_public_view(secrets))
+
+    @app.get("/api/settings/sync", response_model=SyncJobView)
+    def get_sync() -> SyncJobView:
+        return SyncJobView.model_validate(
+            read_sync_job(app_settings.sync_job_path).model_dump()
+        )
+
+    @app.post("/api/settings/sync", response_model=SyncJobView)
+    def post_sync() -> SyncJobView:
+        try:
+            state = start_sync_job(
+                sync_job_path=app_settings.sync_job_path,
+                zepp_env_path=app_settings.zepp_env_path,
+                data_raw_dir=app_settings.data_raw_dir,
+                duckdb_path=app_settings.duckdb_path,
+            )
+        except SyncJobBusy as exc:
+            raise HTTPException(
+                status_code=409, detail="Sync already running"
+            ) from exc
+        return SyncJobView.model_validate(state.model_dump())
 
     @app.get("/api/zones", response_model=ZonesResponse)
     def zones() -> ZonesResponse:

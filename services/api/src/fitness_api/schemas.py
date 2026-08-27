@@ -90,3 +90,11 @@ class ConnectionView(BaseModel):
 class ConnectionUpdate(BaseModel):
     user_id: str | None = None
     app_token: str | None = None
+
+
+class SyncJobView(BaseModel):
+    status: Literal["idle", "running", "ok", "error"]
+    started_at: datetime | None
+    finished_at: datetime | None
+    error: str | None
+    message: str | None = None
