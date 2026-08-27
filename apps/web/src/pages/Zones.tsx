@@ -51,7 +51,7 @@ export function Zones() {
     return (
       <PageMessage
         title="Loading zone settings"
-        detail="Reading your local training profile…"
+        detail="Reading your heart-rate zones…"
       />
     )
   }
