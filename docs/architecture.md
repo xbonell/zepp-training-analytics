@@ -100,12 +100,22 @@ workout `activity_samples`; nothing is written back to DuckDB.
 API defaults: `data/zepp.duckdb`, `data/profile.json`, CORS for
 `http://localhost:5173`. Web dev proxies `/api` to port 8000.
 
+### Self-hosted deploy
+
+The M3+ **Settings** page (connection, masked token, manual sync, profile) also
+targets a single-operator VPS deploy via [`outer-rim`](docs/deploy-outer-rim.md):
+nginx serves the static SPA on `training.xbonell.com`, proxies `/api/` to the
+`zepp-training-api` container, and Cloudflare Access gates the origin. Credentials,
+raw archives, DuckDB, and sync state remain on the operator's VPS data volume —
+not a multi-tenant cloud service. Local-first dev paths (`fitness` CLI, local
+API + Vite) are unchanged.
+
 ## Handoff
 
 - **M2 — persistence:** implemented for activity summaries, workout HR samples
   (`activity_samples`), and band continuous HR (`heart_rate_samples`).
 - **M3 — application:** implemented — FastAPI query layer plus React dashboard
-  (overview, activities, detail, zones, light/dark/system themes).
+  (overview, activities, detail, zones, Settings, light/dark/system themes).
 - **M4 — HR intelligence:** additional zone models (HRR/Karvonen, manual BPM
   tables), richer HRmax/RHR estimators, and trends. Keep Zepp-provided load
   distinct from locally calculated metrics.

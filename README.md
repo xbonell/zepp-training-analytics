@@ -61,6 +61,15 @@ npm run dev
 Open the URL Vite prints (default `http://localhost:5173`). The dev server
 proxies `/api` to `http://127.0.0.1:8000`.
 
+### Settings (local)
+
+The **Settings** page (`/settings`) manages Zepp connection (masked token),
+manual sync + normalize, and training profile (HRmax override). Data paths
+match the API env vars above; see [architecture](docs/architecture.md).
+
+For a self-hosted VPS deploy (Cloudflare Access, outer-rim compose, static drop),
+see [Deploy on outer-rim](docs/deploy-outer-rim.md).
+
 ### Optional — both processes
 
 ```bash
@@ -72,6 +81,7 @@ Starts the API and web dev servers together; stop with Ctrl+C.
 ## Documentation
 
 - [Architecture and milestone boundaries](docs/architecture.md)
+- [Self-hosted deploy (outer-rim)](docs/deploy-outer-rim.md)
 - [Zepp authentication](docs/zepp-auth.md)
 - [Provisional Zepp data model](docs/zepp-data-model.md)
 - [Heart-rate zone models](docs/hr-zone-models.md)
