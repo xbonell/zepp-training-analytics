@@ -6,6 +6,11 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 from fitness_api.config import Settings
+from fitness_api.connection import (
+    connection_public_view,
+    load_connection,
+    save_connection,
+)
 from fitness_api.db import duckdb_available
 from fitness_api.profile import Profile, load_profile, save_profile
 from fitness_api.queries import (
@@ -21,6 +26,8 @@ from fitness_api.queries import (
 from fitness_api.schemas import (
     ActivityDetail,
     ActivitySummary,
+    ConnectionUpdate,
+    ConnectionView,
     HeartRatePoint,
     OverviewResponse,
     SportTypeOption,
@@ -107,6 +114,22 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def put_profile(profile: Profile) -> Profile:
         save_profile(profile, app_settings.profile_path)
         return profile
+
+    @app.get("/api/settings/connection", response_model=ConnectionView)
+    def get_connection() -> ConnectionView:
+        secrets = load_connection(app_settings.zepp_env_path)
+        return ConnectionView.model_validate(connection_public_view(secrets))
+
+    @app.put("/api/settings/connection", response_model=ConnectionView)
+    def put_connection(body: ConnectionUpdate) -> ConnectionView:
+        replace_token = body.app_token is not None
+        secrets = save_connection(
+            app_settings.zepp_env_path,
+            user_id=body.user_id,
+            app_token=body.app_token,
+            replace_token=replace_token,
+        )
+        return ConnectionView.model_validate(connection_public_view(secrets))
 
     @app.get("/api/zones", response_model=ZonesResponse)
     def zones() -> ZonesResponse:

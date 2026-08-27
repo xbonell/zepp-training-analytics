@@ -79,3 +79,14 @@ class OverviewResponse(BaseModel):
         description="Highest positive workout sample HR in the selected period."
     )
     recent: list[ActivitySummary]
+
+
+class ConnectionView(BaseModel):
+    user_id: str | None = None
+    token_set: bool = False
+    token_hint: str | None = None
+
+
+class ConnectionUpdate(BaseModel):
+    user_id: str | None = None
+    app_token: str | None = None
