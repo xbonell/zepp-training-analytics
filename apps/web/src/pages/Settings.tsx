@@ -6,12 +6,15 @@ import {
   startSyncJob,
   updateConnection,
   type ConnectionView,
+  type Profile,
   type SyncJobView,
 } from '../api/client'
+import { ProfileForm } from '../components/ProfileForm'
 
 export function Settings() {
   const [connection, setConnection] = useState<ConnectionView>()
   const [syncJob, setSyncJob] = useState<SyncJobView>()
+  const [profile, setProfile] = useState<Profile>()
   const [userId, setUserId] = useState('')
   const [appToken, setAppToken] = useState('')
   const [error, setError] = useState('')
@@ -26,9 +29,10 @@ export function Settings() {
       fetchSyncJob(controller.signal),
       fetchProfile(controller.signal),
     ])
-      .then(([loadedConnection, loadedSyncJob]) => {
+      .then(([loadedConnection, loadedSyncJob, loadedProfile]) => {
         setConnection(loadedConnection)
         setSyncJob(loadedSyncJob)
+        setProfile(loadedProfile)
         setUserId(loadedConnection.user_id ?? '')
       })
       .catch((reason: unknown) => {
@@ -92,11 +96,11 @@ export function Settings() {
     }
   }
 
-  if (error && (!connection || !syncJob)) {
+  if (error && (!connection || !syncJob || !profile)) {
     return <PageMessage title="Settings unavailable" detail={error} />
   }
 
-  if (!connection || !syncJob) {
+  if (!connection || !syncJob || !profile) {
     return (
       <PageMessage
         title="Loading settings"
@@ -197,13 +201,15 @@ export function Settings() {
         </div>
       </section>
 
-      <section className="data-section" aria-labelledby="profile-stub-title">
+      <section className="data-section" aria-labelledby="profile-title">
         <div className="section-heading">
           <div>
-            <p className="eyebrow">Coming soon</p>
-            <h2 id="profile-stub-title">Profile</h2>
+            <p className="eyebrow">Local settings</p>
+            <h2 id="profile-title">Training profile</h2>
           </div>
+          <small>Stored on this device</small>
         </div>
+        <ProfileForm profile={profile} onSaved={setProfile} />
       </section>
     </>
   )

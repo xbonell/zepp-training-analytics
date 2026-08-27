@@ -1,33 +1,15 @@
-import { render, screen, waitFor } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import {
-  fetchProfile,
-  fetchZones,
-  updateProfile,
-  type Profile,
-  type ZonesResponse,
-} from '../api/client'
+import { fetchZones, type ZonesResponse } from '../api/client'
 import { Zones } from './Zones'
 
 vi.mock('../api/client', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../api/client')>()
   return {
     ...actual,
-    fetchProfile: vi.fn(),
     fetchZones: vi.fn(),
-    updateProfile: vi.fn(),
   }
 })
-
-const profile: Profile = {
-  sex: 'female',
-  birth_date: '1990-05-17',
-  resting_hr: 52,
-  hrmax_override: null,
-  theme_preference: 'dark',
-  display_timezone: 'Europe/Madrid',
-}
 
 const zones: ZonesResponse = {
   hrmax: 190,
@@ -58,9 +40,7 @@ const zones: ZonesResponse = {
 describe('Zones settings page', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(fetchProfile).mockResolvedValue(profile)
     vi.mocked(fetchZones).mockResolvedValue(zones)
-    vi.mocked(updateProfile).mockResolvedValue(profile)
   })
 
   it('shows OTF ranges, active HRmax, age references, colors, and BPM preview', async () => {
@@ -80,49 +60,6 @@ describe('Zones settings page', () => {
     expect(z4Row).toHaveTextContent('160–174 bpm')
     expect(z4Row.querySelector('.zone-z4')).toBeInTheDocument()
     expect(z4Row.querySelector('i')).not.toHaveAttribute('style')
-  })
-
-  it('saves editable profile fields while preserving profile preferences', async () => {
-    const user = userEvent.setup()
-    render(<Zones />)
-    await screen.findByRole('heading', { name: 'Heart-rate zones' })
-
-    await user.clear(screen.getByLabelText('HRmax override'))
-    await user.type(screen.getByLabelText('HRmax override'), '188')
-    await user.clear(screen.getByLabelText('Resting heart rate'))
-    await user.type(screen.getByLabelText('Resting heart rate'), '54')
-    await user.selectOptions(screen.getByLabelText('Sex'), 'male')
-    await user.click(screen.getByRole('button', { name: 'Save profile' }))
-
-    await waitFor(() => {
-      expect(updateProfile).toHaveBeenCalledWith({
-        ...profile,
-        sex: 'male',
-        resting_hr: 54,
-        hrmax_override: 188,
-      })
-    })
-    expect(await screen.findByText('Profile saved.')).toBeVisible()
-    expect(fetchZones).toHaveBeenCalledTimes(2)
-  })
-
-  it('supports clearing an existing HRmax override', async () => {
-    vi.mocked(fetchProfile).mockResolvedValue({
-      ...profile,
-      hrmax_override: 188,
-    })
-    const user = userEvent.setup()
-    render(<Zones />)
-    await screen.findByRole('heading', { name: 'Heart-rate zones' })
-
-    await user.clear(screen.getByLabelText('HRmax override'))
-    await user.click(screen.getByRole('button', { name: 'Save profile' }))
-
-    await waitFor(() => {
-      expect(updateProfile).toHaveBeenCalledWith({
-        ...profile,
-        hrmax_override: null,
-      })
-    })
+    expect(screen.queryByRole('button', { name: /save profile/i })).not.toBeInTheDocument()
   })
 })

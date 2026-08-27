@@ -65,4 +65,22 @@ describe('Settings', () => {
       }),
     )
   })
+
+  it('saves training profile fields', async () => {
+    vi.mocked(api.updateProfile).mockResolvedValue({
+      sex: 'male',
+      birth_date: '1971-11-03',
+      resting_hr: 48,
+      hrmax_override: 188,
+      theme_preference: 'system',
+      display_timezone: 'Europe/Madrid',
+    })
+    const user = userEvent.setup()
+    render(<Settings />)
+    await screen.findByLabelText(/hrmax override/i)
+    await user.clear(screen.getByLabelText(/hrmax override/i))
+    await user.type(screen.getByLabelText(/hrmax override/i), '188')
+    await user.click(screen.getByRole('button', { name: /save profile/i }))
+    await waitFor(() => expect(api.updateProfile).toHaveBeenCalled())
+  })
 })

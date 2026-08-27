@@ -1,12 +1,5 @@
-import { type FormEvent, useEffect, useState } from 'react'
-import {
-  fetchProfile,
-  fetchZones,
-  type Profile,
-  type ZoneId,
-  type ZonesResponse,
-  updateProfile,
-} from '../api/client'
+import { useEffect, useState } from 'react'
+import { fetchZones, type ZoneId, type ZonesResponse } from '../api/client'
 
 const OTF_ZONES: Array<{
   id: Exclude<ZoneId, 'below'>
@@ -19,26 +12,6 @@ const OTF_ZONES: Array<{
   { id: 'z4', percent: '84–91%', purpose: 'Orange' },
   { id: 'z5', percent: '92–100%', purpose: 'All out' },
 ]
-
-type FormState = {
-  hrmaxOverride: string
-  restingHr: string
-  birthDate: string
-  sex: string
-}
-
-function profileForm(profile: Profile): FormState {
-  return {
-    hrmaxOverride: profile.hrmax_override?.toString() ?? '',
-    restingHr: profile.resting_hr?.toString() ?? '',
-    birthDate: profile.birth_date ?? '',
-    sex: profile.sex ?? '',
-  }
-}
-
-function optionalNumber(value: string) {
-  return value === '' ? null : Number(value)
-}
 
 function bpmRange(
   boundary: readonly [number, number] | undefined,
@@ -53,24 +26,13 @@ function bpmRange(
 }
 
 export function Zones() {
-  const [profile, setProfile] = useState<Profile>()
   const [zones, setZones] = useState<ZonesResponse>()
-  const [form, setForm] = useState<FormState>()
   const [error, setError] = useState('')
-  const [saveMessage, setSaveMessage] = useState('')
-  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     const controller = new AbortController()
-    Promise.all([
-      fetchProfile(controller.signal),
-      fetchZones(controller.signal),
-    ])
-      .then(([loadedProfile, loadedZones]) => {
-        setProfile(loadedProfile)
-        setForm(profileForm(loadedProfile))
-        setZones(loadedZones)
-      })
+    fetchZones(controller.signal)
+      .then(setZones)
       .catch((reason: unknown) => {
         if (!controller.signal.aborted) {
           setError(
@@ -81,47 +43,11 @@ export function Zones() {
     return () => controller.abort()
   }, [])
 
-  function changeField(field: keyof FormState, value: string) {
-    setSaveMessage('')
-    setForm((current) => (current ? { ...current, [field]: value } : current))
-  }
-
-  async function save(event: FormEvent) {
-    event.preventDefault()
-    if (!profile || !form) return
-
-    setSaving(true)
-    setError('')
-    setSaveMessage('')
-    const nextProfile: Profile = {
-      ...profile,
-      hrmax_override: optionalNumber(form.hrmaxOverride),
-      resting_hr: optionalNumber(form.restingHr),
-      birth_date: form.birthDate || null,
-      sex: form.sex || null,
-    }
-
-    try {
-      const savedProfile = await updateProfile(nextProfile)
-      const refreshedZones = await fetchZones()
-      setProfile(savedProfile)
-      setForm(profileForm(savedProfile))
-      setZones(refreshedZones)
-      setSaveMessage('Profile saved.')
-    } catch (reason: unknown) {
-      setError(
-        reason instanceof Error ? reason.message : 'Unable to save settings',
-      )
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  if (error && (!profile || !zones || !form)) {
+  if (error && !zones) {
     return <PageMessage title="Zone settings unavailable" detail={error} />
   }
 
-  if (!profile || !zones || !form) {
+  if (!zones) {
     return (
       <PageMessage
         title="Loading zone settings"
@@ -216,77 +142,6 @@ export function Zones() {
             </tbody>
           </table>
         </div>
-      </section>
-
-      <section className="data-section" aria-labelledby="profile-title">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">Local settings</p>
-            <h2 id="profile-title">Training profile</h2>
-          </div>
-          <small>Stored on this device</small>
-        </div>
-        <form className="profile-form" onSubmit={save}>
-          <label>
-            <span>HRmax override</span>
-            <input
-              aria-label="HRmax override"
-              type="number"
-              min="1"
-              step="0.1"
-              inputMode="decimal"
-              placeholder={zones.hrmax?.toString() ?? 'BPM'}
-              value={form.hrmaxOverride}
-              onChange={(event) =>
-                changeField('hrmaxOverride', event.currentTarget.value)
-              }
-            />
-          </label>
-          <label>
-            <span>Resting heart rate</span>
-            <input
-              aria-label="Resting heart rate"
-              type="number"
-              min="1"
-              inputMode="numeric"
-              placeholder="BPM"
-              value={form.restingHr}
-              onChange={(event) =>
-                changeField('restingHr', event.currentTarget.value)
-              }
-            />
-          </label>
-          <label>
-            <span>Birth date</span>
-            <input
-              aria-label="Birth date"
-              type="date"
-              value={form.birthDate}
-              onChange={(event) =>
-                changeField('birthDate', event.currentTarget.value)
-              }
-            />
-          </label>
-          <label>
-            <span>Sex</span>
-            <select
-              aria-label="Sex"
-              value={form.sex}
-              onChange={(event) => changeField('sex', event.currentTarget.value)}
-            >
-              <option value="">Not specified</option>
-              <option value="female">Female</option>
-              <option value="male">Male</option>
-              <option value="other">Other</option>
-            </select>
-          </label>
-          <div className="profile-form__actions">
-            <button type="submit" disabled={saving}>
-              {saving ? 'Saving…' : 'Save profile'}
-            </button>
-            <p aria-live="polite">{saveMessage || error}</p>
-          </div>
-        </form>
       </section>
     </>
   )
