@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import Literal
 from zoneinfo import ZoneInfo
 
@@ -34,7 +34,13 @@ from fitness_api.schemas import (
     SyncJobView,
     ZonesResponse,
 )
-from fitness_api.sync_job import SyncJobBusy, read_sync_job, start_sync_job
+from fitness_api.sync_job import (
+    SyncJobBusy,
+    SyncJobState,
+    read_sync_job,
+    start_sync_job,
+    write_sync_job,
+)
 from fitness_api.sports import sport_label
 from fitness_api.zones import (
     BELOW_COLOR,
@@ -90,8 +96,30 @@ def _enrich_activity_summaries(
     return activities
 
 
+INTERRUPTED_SYNC_MESSAGE = "Interrupted by process restart; run Sync again"
+
+
+def _recover_interrupted_sync_job(settings: Settings) -> None:
+    # A "running" status can only be left behind by a process that died
+    # mid-sync (crash, redeploy, etc). On a fresh startup no thread is
+    # actually running the job, so it would otherwise get stuck forever.
+    current = read_sync_job(settings.sync_job_path)
+    if current.status != "running":
+        return
+    write_sync_job(
+        settings.sync_job_path,
+        SyncJobState(
+            status="error",
+            started_at=current.started_at,
+            finished_at=datetime.now(timezone.utc),
+            error=INTERRUPTED_SYNC_MESSAGE,
+        ),
+    )
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     app_settings = settings or Settings()
+    _recover_interrupted_sync_job(app_settings)
     app = FastAPI(title="Zepp Training Analytics API")
     app.add_middleware(
         CORSMiddleware,
