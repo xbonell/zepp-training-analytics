@@ -103,7 +103,7 @@ API defaults: `data/zepp.duckdb`, `data/profile.json`, CORS for
 ### Self-hosted deploy
 
 The M3+ **Settings** page (connection, masked token, manual sync, profile) also
-targets a single-operator VPS deploy via [`outer-rim`](docs/deploy-outer-rim.md):
+targets a single-operator VPS deploy via [`outer-rim`](deploy-outer-rim.md):
 nginx serves the static SPA on `training.xbonell.com`, proxies `/api/` to the
 `zepp-training-api` container, and Cloudflare Access gates the origin. Credentials,
 raw archives, DuckDB, and sync state remain on the operator's VPS data volume —
