@@ -9,7 +9,11 @@ dependencies = [
   "pytz>=2024.1",
   "pydantic>=2.7",
   "pydantic-settings>=2.3",
+  "fitness",
 ]
+
+[tool.uv.sources]
+fitness = { path = "../zepp-importer", editable = true }
 
 [project.optional-dependencies]
 dev = [
