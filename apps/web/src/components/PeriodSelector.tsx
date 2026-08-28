@@ -75,13 +75,13 @@ export function PeriodSelector({ onApply }: PeriodSelectorProps) {
         />
       </label>
       <label>
-        <span>Sport type</span>
+        <span>Activity type</span>
         <select
-          aria-label="Sport type"
+          aria-label="Activity type"
           value={sportType}
           onChange={(event) => setSportType(event.target.value)}
         >
-          <option value="">All sports</option>
+          <option value="">All activities</option>
           {sports.map((sport) => (
             <option key={sport.sport_type} value={sport.sport_type}>
               {sport.label}

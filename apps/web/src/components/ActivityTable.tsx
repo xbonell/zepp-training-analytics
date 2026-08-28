@@ -58,7 +58,7 @@ export function ActivityTable({
         <thead>
           <tr>
             <th>Date</th>
-            <th>Sport</th>
+            <th>Activity</th>
             <th>Duration</th>
             <th>Distance</th>
             {!compact && <th>Avg / max HR</th>}
@@ -77,7 +77,7 @@ export function ActivityTable({
                   {formatDate(activity.started_at, timeZone)}
                 </a>
               </td>
-              <td data-label="Sport">{activity.sport_label}</td>
+              <td data-label="Activity">{activity.sport_label}</td>
               <td data-label="Duration">
                 {formatDuration(activity.duration_s)}
               </td>

@@ -476,6 +476,7 @@ h1 {
 .profile-form label {
   display: grid;
   gap: 8px;
+  align-self: flex-start;
 }
 
 .profile-form input,

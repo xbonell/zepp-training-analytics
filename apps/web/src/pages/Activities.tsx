@@ -66,7 +66,7 @@ export function Activities() {
         ) : activities.length === 0 ? (
           <div className="inline-message">
             <h2>No matching activities</h2>
-            <p>Try a wider period or clear the sport filter.</p>
+            <p>Try a wider period or clear the activity type filter.</p>
           </div>
         ) : (
           <ActivityTable activities={activities} timeZone={timeZone} />

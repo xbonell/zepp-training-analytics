@@ -76,7 +76,7 @@ describe('Activities page', () => {
     await user.type(screen.getByLabelText('From'), '2026-08-01')
     await user.type(screen.getByLabelText('To'), '2026-08-26')
     await user.selectOptions(
-      screen.getByLabelText('Sport type'),
+      screen.getByLabelText('Activity type'),
       'Outdoor Cycling',
     )
     await user.click(screen.getByRole('button', { name: 'Apply filters' }))
