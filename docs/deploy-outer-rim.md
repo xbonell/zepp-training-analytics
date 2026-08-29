@@ -5,16 +5,58 @@ Operator checklist for wiring this project into the [`xbonell/outer-rim`](https:
 ## Prerequisites
 
 - [ ] DNS: `training` → VPS (Cloudflare proxy on)
-- [ ] Cloudflare Access application for `training.xbonell.com` (create before exposing real tokens)
+- [ ] Cloudflare Access (OTP + owner email) for `training.xbonell.com` — enable after HTTPS, before real Zepp tokens
 - [ ] SSL mode **Full (Strict)** once origin cert exists (nginx-proxy + Let's Encrypt)
 - [ ] Data volume on VPS: `./data/zepp-training/` with DuckDB, profile, secrets, raw archives (see architecture doc)
 
 ## 1. Cloudflare
 
-1. Add DNS record: `training` → VPS IP (proxied).
-2. Create a Cloudflare Access application for `training.xbonell.com` (allow your identity only).
-3. Set SSL/TLS mode to **Full (Strict)** after the origin certificate is issued.
-4. **Do not** enable Access until HTTPS works end-to-end; enable Access **before** pasting a real Zepp token in Settings.
+### 1.1 DNS and TLS (before Access)
+
+1. Add DNS record: `training` → VPS IP (**proxied** / orange cloud).
+2. Bring up the site containers so nginx-proxy can issue the certificate.
+3. Set SSL/TLS mode to **Full (Strict)** after the origin certificate exists.
+4. Confirm `https://training.xbonell.com` responds over HTTPS (Access still off is OK at this step).
+
+### 1.2 Enable One-time PIN
+
+In Cloudflare Zero Trust:
+
+1. Open **Settings → Authentication** (login methods).
+2. Add **One-time PIN** if it is not already enabled.
+3. No other identity provider is required for this app.
+
+If OTP emails are filtered, allowlist Cloudflare's notify sender using the
+address listed in the current [One-time PIN docs](https://developers.cloudflare.com/cloudflare-one/identity/one-time-pin/).
+
+### 1.3 Self-hosted Access application
+
+1. Create an Access application:
+   - **Type:** Self-hosted
+   - **Application domain:** `training.xbonell.com` (whole hostname — covers `/` and `/api/*`)
+   - **Session duration:** long enough for daily personal use (e.g. 1 month)
+2. Attach an **Allow** policy:
+
+| Rule type | Selector | Value |
+|-----------|----------|-------|
+| Include | Emails | Your personal email only (exact address) |
+| Require | Login methods | One-time PIN |
+
+3. Do **not**:
+   - Use Include → **Everyone**
+   - Use "emails ending in" a broad consumer domain (e.g. `@gmail.com`)
+   - Use OTP as the only Include rule without an email restriction (anyone could request a PIN)
+
+### 1.4 Order of operations (mandatory)
+
+1. DNS proxied + HTTPS working end-to-end (§1.1).
+2. Enable Access application + policy (§1.2–1.3).
+3. Verify the gate (§7 Access checks).
+4. Only then paste a real Zepp token in Settings.
+
+**Origin reminder:** Keep `zepp-training-api` off the public internet (no
+`VIRTUAL_HOST`, no published `:8000`). Access is edge-only; a publicly
+reachable origin would bypass it.
 
 ## 2. Compose services
 
