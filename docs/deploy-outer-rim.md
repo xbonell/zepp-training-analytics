@@ -193,7 +193,17 @@ Secrets never leave the VPS volume. Settings in the web UI manages connection an
 
 ## 7. Verification
 
-- [ ] `https://training.xbonell.com` loads the SPA (Access gate active)
-- [ ] `https://training.xbonell.com/api/health` returns OK
+### Access gate (do these first)
+
+- [ ] Incognito → `https://training.xbonell.com` shows Access login / redirect, not the SPA
+- [ ] Incognito → `https://training.xbonell.com/api/health` is gated the same way (not a public 200 without login)
+- [ ] Owner email + OTP → SPA loads
+- [ ] Owner session → `https://training.xbonell.com/api/health` returns OK
+- [ ] Non-allowlisted email → no usable session
+
+Revoke access later by removing the email from the Access policy or disabling the application.
+
+### App smoke (after Access works)
+
 - [ ] Settings → connection test succeeds with masked token display
 - [ ] Manual sync + normalize completes; dashboard shows data

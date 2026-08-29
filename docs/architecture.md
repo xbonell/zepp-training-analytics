@@ -105,7 +105,8 @@ API defaults: `data/zepp.duckdb`, `data/profile.json`, CORS for
 The M3+ **Settings** page (connection, masked token, manual sync, profile) also
 targets a single-operator VPS deploy via [`outer-rim`](deploy-outer-rim.md):
 nginx serves the static SPA on `training.xbonell.com`, proxies `/api/` to the
-`zepp-training-api` container, and Cloudflare Access gates the origin. Credentials,
+`zepp-training-api` container, and Cloudflare Access (email one-time PIN, owner
+only) gates the hostname at the edge — the app itself has no login. Credentials,
 raw archives, DuckDB, and sync state remain on the operator's VPS data volume —
 not a multi-tenant cloud service. Local-first dev paths (`fitness` CLI, local
 API + Vite) are unchanged.
