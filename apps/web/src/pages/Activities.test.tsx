@@ -59,7 +59,7 @@ describe('Activities page', () => {
     expect(screen.getAllByText('Outdoor Cycling').length).toBeGreaterThan(0)
     expect(screen.getByText('18.4 km')).toBeVisible()
     expect(screen.getByText(/142 bpm/)).toBeVisible()
-    expect(screen.getByText(/10 min/)).toBeVisible()
+    expect(screen.getByText('10')).toBeVisible()
     expect(screen.getByText('Z2')).toBeVisible()
     expect(screen.getByRole('link', { name: /aug 23, 2026/i })).toHaveAttribute(
       'href',

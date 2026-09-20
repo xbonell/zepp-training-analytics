@@ -100,7 +100,7 @@ export function ActivityTable({
               </td>
               <td data-label="Splat">
                 {Number.isFinite(activity.splat_minutes_estimate)
-                  ? `${Math.round(activity.splat_minutes_estimate)} min`
+                  ? `${Math.round(activity.splat_minutes_estimate)}`
                   : '—'}
               </td>
             </tr>

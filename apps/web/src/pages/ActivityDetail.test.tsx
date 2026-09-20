@@ -80,7 +80,7 @@ describe('Activity detail page', () => {
     expect(fetchZones).toHaveBeenCalledWith(expect.any(AbortSignal))
     expect(screen.getByText(/August 23, 2026/i)).toBeVisible()
     expect(screen.getByRole('img', { name: /heart rate from 100 to 150/i })).toBeVisible()
-    expect(screen.getByText('1 min')).toBeVisible()
+    expect(screen.getByText('1')).toBeVisible()
     expect(screen.getByText('Splat')).toBeVisible()
     expect(screen.getAllByText('Z4')).toHaveLength(2)
     expect(screen.getAllByText('01:00')).toHaveLength(2)

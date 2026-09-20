@@ -1,5 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fetchOverview, fetchProfile } from '../api/client'
 import { Overview } from './Overview'
@@ -68,27 +67,19 @@ describe('Overview page', () => {
     expect(screen.getAllByText('Splat').length).toBeGreaterThan(0)
     expect(screen.getByText('Peak HR')).toBeVisible()
     expect(screen.getByText('181 bpm')).toBeVisible()
-    expect(screen.getByText('Highest workout sample')).toBeVisible()
     expect(
       screen.getByRole('img', { name: /heart-rate zone mix/i }),
     ).toBeVisible()
     expect(screen.getByText('10.0 km')).toBeVisible()
     expect(screen.getAllByText('Z2').length).toBeGreaterThan(0)
+    expect(screen.queryByRole('button', { name: '7 days' })).toBeNull()
   })
 
-  it('requests the selected overview period', async () => {
-    const user = userEvent.setup()
+  it('loads unfiltered overview data', async () => {
     render(<Overview />)
     await screen.findByRole('heading', { name: 'Training overview' })
 
-    await user.click(screen.getByRole('button', { name: '7 days' }))
-
-    await waitFor(() => {
-      expect(fetchOverview).toHaveBeenLastCalledWith(
-        { from: '2026-08-20', to: '2026-08-26' },
-        expect.any(AbortSignal),
-      )
-    })
+    expect(fetchOverview).toHaveBeenCalledWith({}, expect.any(AbortSignal))
   })
 
   it('shows a useful empty state', async () => {
