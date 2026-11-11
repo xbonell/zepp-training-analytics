@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fetchOverview, fetchProfile } from '../api/client'
 import { Overview } from './Overview'
@@ -72,14 +73,23 @@ describe('Overview page', () => {
     ).toBeVisible()
     expect(screen.getByText('10.0 km')).toBeVisible()
     expect(screen.getAllByText('Z2').length).toBeGreaterThan(0)
-    expect(screen.queryByRole('button', { name: '7 days' })).toBeNull()
   })
 
-  it('loads unfiltered overview data', async () => {
+  it('requests the selected overview period', async () => {
+    const user = userEvent.setup()
     render(<Overview />)
     await screen.findByRole('heading', { name: 'Training overview' })
 
     expect(fetchOverview).toHaveBeenCalledWith({}, expect.any(AbortSignal))
+
+    await user.click(screen.getByRole('button', { name: '7 days' }))
+
+    await waitFor(() => {
+      expect(fetchOverview).toHaveBeenLastCalledWith(
+        { from: '2026-08-20', to: '2026-08-26' },
+        expect.any(AbortSignal),
+      )
+    })
   })
 
   it('shows a useful empty state', async () => {
